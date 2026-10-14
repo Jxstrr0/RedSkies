@@ -1,6 +1,6 @@
 /* ============================================================================
  * models_ground.js — Red Skies · battery ground equipment (radars, gun, CP, power)
- * Prairie Blue Studio · procedural, three.js r128+. Standalone (no RS, no other model file).
+ * Longlight Interactive · procedural, three.js r128+. Standalone (no RS, no other model file).
  *
  * Original fictional designs in the class of a long-range SAM battery's ground kit:
  *   radar_search   8x8 truck, lift pedestal, big flat-panel active array (7.6 x 3.8 m), top ~12.7 m

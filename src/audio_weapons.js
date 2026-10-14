@@ -1,6 +1,6 @@
 /* ============================================================================
  * audio_weapons.js — Red Skies / Weapons Hold · weapon sound engine
- * Prairie Blue Studio · 100% procedural WebAudio (no samples, no downloads)
+ * Longlight Interactive · 100% procedural WebAudio (no samples, no downloads)
  *
  * Every missile/bomb type in the game gets its own voice for each phase:
  *   launch   cold (Lance: gas-generator ejection → cover crack → motor lights ~0.85 s later, ~25 m up)
