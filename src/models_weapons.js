@@ -1,6 +1,6 @@
 /* ============================================================================
  * models_weapons.js — Red Skies / Weapons Hold · air-launched weapons
- * Prairie Blue Studio · procedural, no textures, three.js r128+
+ * Longlight Interactive · procedural, no textures, three.js r128+
  *
  * Fictional, generic Western-style modern weapons (not copies of real types):
  *   aam_long        "Spire"     long-range radar-guided air-to-air missile   3.66 m

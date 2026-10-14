@@ -182,7 +182,7 @@
       btn('surv', `SURVIVAL<small>Hold as long as you can${sb ? ' · best wave ' + sb.waves : ''}</small>`, 'col', 'id="m-surv"') +
       btn('free', 'FREE WATCH<small>Seeded skirmish, your rules</small>', 'col', 'id="m-free"') +
       btn('settings', 'SETTINGS<small>Sound · haptics · progress</small>', 'dim col', 'id="m-settings"') +
-      `<div class="sub" style="margin-top:14px">a game by Prairie Blue Studio${RS.VERSION ? ' · V' + RS.VERSION : ''}</div>`);
+      `<div class="sub" style="margin-top:14px">a game by Longlight Interactive${RS.VERSION ? ' · V' + RS.VERSION : ''}</div>`);
   }
 
   function map() {
