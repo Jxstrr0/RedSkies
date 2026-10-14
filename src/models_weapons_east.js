@@ -1,6 +1,6 @@
 /* ============================================================================
  * models_weapons_east.js — Red Skies / Weapons Hold · friendly-side weapons
- * Prairie Blue Studio · procedural, no textures, three.js r128+
+ * Longlight Interactive · procedural, no textures, three.js r128+
  *
  * Fictional, generic Eastern-bloc-style weapons (not copies of real types).
  * Air-launched (carried by jet_friend):

@@ -1,6 +1,6 @@
 # Red Skies
 
-A phone-first air-defence game by Prairie Blue Studio. The current version is in [`VERSION`](VERSION); changes are logged in [`plan/status.md`](plan/status.md).
+A phone-first air-defence game by Longlight Interactive. The current version is in [`VERSION`](VERSION); changes are logged in [`plan/status.md`](plan/status.md).
 
 You are the fire-control officer of SAM battery *Kessel*, Republic of Varenna.
 Watch the radar, sort friend from foe, and hold your fire until you are sure.
@@ -100,7 +100,7 @@ npm run balance          # tools/balance.js: a bot operator plays shifts and pri
 
 ## License
 
-Copyright © 2026 Prairie Blue Studio. All rights reserved. See [`LICENSE`](LICENSE).
+Copyright © 2026 Longlight Interactive. All rights reserved. See [`LICENSE`](LICENSE).
 three.js is used under the MIT License (`vendor/three.LICENSE`).
 
 ## Provenance
