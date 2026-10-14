@@ -1,6 +1,6 @@
 /* ============================================================================
  * models_jets.js — Red Skies / Weapons Hold · hostile jet models
- * Prairie Blue Studio · procedural, no textures, three.js r128+
+ * Longlight Interactive · procedural, no textures, three.js r128+
  *
  * Plugs into the Models API from the build plan:
  *   Models.create('jet_hostile', { variant: 'fighter' })  → THREE.Group

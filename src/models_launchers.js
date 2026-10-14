@@ -1,6 +1,6 @@
 /* ============================================================================
  * models_launchers.js — Red Skies / Weapons Hold · SAM launcher vehicles
- * Prairie Blue Studio · procedural, three.js r128+. Needs models_weapons_east.js.
+ * Longlight Interactive · procedural, three.js r128+. Needs models_weapons_east.js.
  *
  * Original fictional designs in the heavy transporter-erector-launcher class:
  *   launcher_lance  6x6 bonneted tractor + 4-axle semitrailer, 4 round canisters
