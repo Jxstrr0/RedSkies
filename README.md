@@ -36,6 +36,15 @@ To play from GitHub, enable **Settings → Pages** for this repository and serve
   *Red Skies*, each shift with three mission variants) with briefings, debriefs and a
   resupply shop, seeded *Free watch* skirmishes, and an endless *Survival* mode.
   Progress is saved in `localStorage` (keys prefixed `redskies.v1.`).
+- **Save codes:** to move your progress to another phone or browser, open
+  **Settings → Save code → Back up**. It shows your progress as one line of text
+  starting with `RS1:`; tap **Copy code** and keep it in your notes. On the other
+  device, open **Settings → Save code → Restore**, paste the code, tap **Check code**,
+  then **Restore**. It brings back the campaign (shift, grades, medals, magazine,
+  credits), your survival best runs, the free watch setup, training and the
+  sound/haptics settings, and it replaces whatever progress that device had.
+  A code with a typo or a missing piece is turned away with a message and changes
+  nothing. Everything stays on your devices: the game never sends the code anywhere.
 
 ## Build
 
@@ -76,15 +85,16 @@ This writes three files:
 | `src/audio_weapons.js` | `RS.sfx`: procedural weapon sounds (launch, flight, detonation) |
 | `src/ui.js` | `RS.ui`: radar scope, TRACK/IFF, BATTERY and COMMS tabs, launcher strip, thumb zone |
 | `src/eo.js` | `RS.eo`: electro-optical tracker symbology |
-| `src/meta.js` | `RS.meta`: menus, briefing, debrief, resupply, free watch, settings, pause |
+| `src/savecode.js` | `RS.savecode`: save codes (`RS1:` + packed progress + a checksum), used by Settings → Save code |
+| `src/meta.js` | `RS.meta`: menus, briefing, debrief, resupply, free watch, settings (incl. the save code screens), pause |
 | `src/title.js` | `RS.title`: the animated cover page over the live scene |
 | `src/tutorial.js` | `RS.tutorial`: the guided Training Watch |
-| `src/main.js` | `RS.main`: boot, fixed-step loop (20 Hz sim), resize, save/load |
+| `src/main.js` | `RS.main`: boot, fixed-step loop (20 Hz sim), resize, save/load (`RS.save`, `RS.load`, `RS.remove`) |
 
 ## Tests
 
 ```sh
-npm test                 # node tests: test/*.test.js (sim, content, campaign, fixes); no install needed
+npm test                 # node tests: test/*.test.js (sim, content, campaign, fixes, save codes); no install needed
 npm run check:browser    # Playwright checks: test/*.check.js (browser, ui, meta, scene, audio)
 npm run balance          # tools/balance.js: a bot operator plays shifts and prints outcomes per weapon
 ```
