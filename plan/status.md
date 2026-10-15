@@ -5,7 +5,7 @@ Read this first in a new session; it replaces re-exploring the code. Update it a
 - **Version:** see `VERSION` (Major.Minor.Patch.Build; Major = overhaul, Minor = feature batch, Patch = tweak/fix, Build = republish). Bump before every publish.
 - **Repo:** https://github.com/Jxstrr0/Red-Skies- (`main` is the default branch)
 - **Live artifact:** https://claude.ai/artifact/2vVrrJw4wg99sdZw6rptYP. Publish `dist/weapons_hold.artifact.html` to this same URL, labelled with the version.
-  - Last publish: V1.4.4.0 (artifact version 38), 2026-09-29. The source files are published alongside the page.
+  - Last publish: V1.4.5.0 (artifact version 39), 2026-10-14. The source files are published alongside the page.
 - **Studio:** Longlight Interactive. The license is all rights reserved (`LICENSE`); three.js is MIT (`vendor/three.LICENSE`).
 
 ## Layout (details in README.md)
@@ -30,6 +30,7 @@ Read this first in a new session; it replaces re-exploring the code. Update it a
 - V1.4.3.0: a single version bump for the three improvement batches, then republish to the same artifact URL.
 - Pop-up helicopters hide until about 8–10 km, as the briefings say. They start just outside their pop-up range at the authored time. Shifts with helicopters are a little harder.
 - License: all rights reserved.
+- V1.4.5.0: the studio is Longlight Interactive (was Prairie Blue Studio).
 - The title/cover shot keeps full-quality grass; the performance savings apply in play only.
 - V1.4.4.0 Training Watch:
   - Every shot the player fires in training hits: Lance, Dart and gun (`ShiftDef.sureHit`). Real watches are unchanged.
@@ -38,6 +39,7 @@ Read this first in a new session; it replaces re-exploring the code. Update it a
 
 ## Changelog
 
+- **1.4.5.0**: studio renamed from Prairie Blue Studio to Longlight Interactive (title credit, menu credit, LICENSE, README, file headers).
 - **1.4.4.0** (Training Watch)
   - Every training shot hits: no Pk roll, no dodging or chaff, an engaged target cannot leave, and a salvo's spare round vanishes without a MISS. The flag is tested before any `rand()`, and 108 normal-shift fingerprint runs are byte-identical to 1.4.3.0.
   - The training jet starts at ~40 km.
