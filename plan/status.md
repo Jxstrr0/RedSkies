@@ -17,6 +17,7 @@ Read this first in a new session; it replaces re-exploring the code. Update it a
 - `build.js` fails when a file in `src/` is missing from ORDER, or the other way round.
 - The contract is `src/contracts.js`: every event payload, state field and command. Update it with any API change.
 - The sim (`src/sim.js`) never touches the DOM; the node tests drive it headless.
+- Save codes (`src/savecode.js`, `RS.savecode`): Settings → Save code → Back up / Restore. `RS1:` + packed JSON of every `redskies.v1.` key + a checksum; restore checks everything before it writes, and replaces all keys at once.
 - Tests:
   - `npm test` runs the node tests (`test/*.test.js`).
   - `npm run check:browser` runs the Playwright checks (`test/*.check.js`, shared setup in `test/_browser.js`).
@@ -39,6 +40,7 @@ Read this first in a new session; it replaces re-exploring the code. Update it a
 
 ## Changelog
 
+- **Next (not published yet; bump `VERSION` before publishing)**: save codes. Settings → Save code → **Back up** shows all progress as one `RS1:` line with a Copy button; **Restore** takes a pasted code, shows what it holds and asks before replacing this device's progress. It carries the campaign, survival best runs, free watch setup, training and settings. Damaged, cut-off, other-game and newer-version codes get a plain message and change nothing. New `test/savecode.test.js`; `test/meta.check.js` has a `code` section (META_ONLY=code).
 - **1.4.5.0**: studio renamed from Prairie Blue Studio to Longlight Interactive (title credit, menu credit, LICENSE, README, file headers).
 - **1.4.4.0** (Training Watch)
   - Every training shot hits: no Pk roll, no dodging or chaff, an engaged target cannot leave, and a salvo's spare round vanishes without a MISS. The flag is tested before any `rand()`, and 108 normal-shift fingerprint runs are byte-identical to 1.4.3.0.

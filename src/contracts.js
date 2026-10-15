@@ -231,6 +231,7 @@ RS.AIR_VISIBLE_KM = 15;   // aircraft (not missiles) are put in state.visible ou
      Listens to SHIFT_END; shows the full debrief (replaces the UI's minimal end card: UI hides its card when RS.meta exists).
    Grade (A–F) computed in meta from SHIFT_END.stats + state: asset hp, leakers, ammo efficiency (kills per round),
    reaction time, fratricide = F. Save: localStorage key 'redskies.v1' in try/catch → {campaign:{unlocked, results[], reserve}, settings}.
+   (Now: one localStorage key per save key, 'redskies.v1.' + key, through RS.save / RS.load / RS.remove in main.js; see meta.js.)
 */
 
 /* =====================================================================
@@ -296,3 +297,14 @@ RS.AIR_VISIBLE_KM = 15;   // aircraft (not missiles) are put in state.visible ou
        LEAKER, ASSET_HIT (+damage), ARM_IMPACT (at 0,0, +damage), FRATRICIDE, WAVE (id 'W'+n at 0,0, +n,hostiles)
    state.stats + { firstShotKills (hostiles killed by the first round/burst fired at them), shotsAtFriends (rounds/bursts fired at
        true friendlies), maxEmit (longest continuous emission s), waves (survival: waves fully survived) }            */
+
+/* ---------- Save codes (savecode.js) ----------
+   RS.remove(key) -> boolean           main.js: forget one save key (true = it reached localStorage)
+   RS.savecode = { PREFIX:'RS1:', KEYS:['campaign','settings','free','survival','tutorial'], MSG,
+     make(skipped?) -> 'RS1:' + base64url(LZW(UTF-8(JSON))) + 6-char checksum   JSON {v:1, ver, at, d:{key: saved value}} (missing = not saved)
+     read(text) -> {v, ver, at, d}     tolerant of spaces/line breaks; checks checksum, version and every value's shape;
+                                       throws Error(friendly message): empty, damaged, other game (e.g. GG1:), newer (RS2: / v > 1)
+     apply(data) -> {ok, stored}       writes every key (missing → RS.remove); all or nothing (rolls back if some writes fail)
+     summary(data) -> string[]         lines for the confirm box; collect(), encode(obj), decode(text) for tests }
+   UI: meta.js SETTINGS → SAVE CODE → BACK UP / RESTORE (screens 'backup', 'restore'). No network: the code only goes
+   where the player pastes it.                                                                                       */

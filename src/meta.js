@@ -6,6 +6,8 @@
         get screen, get campaign, get settings, get survival, get last, get def, reset()
    Save keys (RS.save/RS.load, main.js): 'campaign' {next, unlocked, best:{id:grade}, results[], reserve, pending, bank, medals:{id:[medalId]}},
         'settings' {sound, haptics}, 'free' {seed, diff, dur, ev:{}, time, sky}, 'survival' {seed, best:[{score,waves,kills,seed,at}]}
+   Save codes (RS.savecode, savecode.js): SETTINGS → SAVE CODE → BACK UP (code + COPY CODE) / RESTORE (paste → CHECK CODE →
+        confirm → every key replaced, then loadAll() re-reads them in place). Screens 'backup' and 'restore'.
    V1.1: weather pickers + briefing line, SURVIVAL (endless) mode, debrief REPLAY mini-scope + MEDALS, tutorial hooks.
    Tutorial hooks (RS.tutorial feature-detected): menu TRAINING (when !done) + SETTINGS TRAINING call RS.tutorial.start();
    SHIFT_END of a def.tutorial shift is ignored (no debrief/save); pause QUIT during it calls RS.tutorial.stop().
@@ -113,12 +115,19 @@
 #meta .rpk { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 6px; font-size: 10px; color: #6d8a76; }
 #meta .wv { font-size: 58px; color: #ffb020; }
 #meta tr.me td { color: #ffb020; background: #1a1406; font-weight: 700; }
+#meta textarea.code { display: block; width: 100%; min-height: 120px; max-height: 42vh; margin: 0; padding: 8px 10px; resize: vertical; border: 1px solid #2f4a39;
+  border-radius: 6px; background: #050907; color: #45ff84; font: inherit; font-size: 14px; line-height: 1.35; word-break: break-all; overflow-wrap: anywhere;
+  -webkit-user-select: text; user-select: text; }
+#meta textarea.code::placeholder { color: #3d5a47; }
+#meta textarea.code:focus-visible { outline: 2px solid #45ff84; outline-offset: 2px; }
+#meta .codemsg { min-height: 1.4em; font-size: 12px; }
 `;
 
   let root, mc, pbtn;
   let camp = null, cfg = null, freeOpts = null, surv = null;
   let screen = null, mode = null;            // mode: {type:'campaign', idx, frontier} | {type:'free', opts} | {type:'survival', seed}
   let curDef = null, lastEnd = null, tally = null, buy = null, resetArm = false, debTimer = 0;
+  let restoreText = '', restorePend = null, codeNote = null;   // save codes: pasted text, checked code waiting for the OK, note after restoring
 
   /* ---------- persistence ---------- */
   const content = () => RS.content, CP = () => RS.campaign;
@@ -142,6 +151,20 @@
     return f;
   }
   function saveCamp() { camp.unlocked = Math.min(CP().shifts.length, camp.next + 1); save('campaign', camp); }
+  /** (Re)read every save key: at boot, and after a save code is restored. */
+  function loadAll() {
+    camp = loadCamp();
+    cfg = Object.assign({ sound: true, haptics: true, voice: true }, load('settings', {}));
+    const fo = load('free', null);
+    freeOpts = Object.assign(defaultFree(), fo && typeof fo === 'object' ? fo : {});
+    freeOpts.ev = Object.assign({}, freeOpts.ev);
+    const so = load('survival', null);
+    surv = { seed: 1 + Math.floor(Math.random() * 99999), best: [] };
+    if (so && typeof so === 'object') {
+      if (+so.seed > 0) surv.seed = Math.floor(+so.seed);
+      if (Array.isArray(so.best)) surv.best = so.best.filter(b => b && typeof b.score === 'number').slice(0, 5);
+    }
+  }
   function applySettings() {
     RS.settings.sound = cfg.sound; RS.settings.haptics = cfg.haptics; RS.settings.voice = cfg.voice !== false;
     try { if (RS.audio && RS.audio.setMuted) RS.audio.setMuted(!cfg.sound); } catch (e) { /* audio optional */ }
@@ -181,7 +204,7 @@
       btn('map', `CAMPAIGN<small>${sub}</small>`, (train ? '' : 'pri ') + 'col', 'id="m-campaign"') +
       btn('surv', `SURVIVAL<small>Hold as long as you can${sb ? ' · best wave ' + sb.waves : ''}</small>`, 'col', 'id="m-surv"') +
       btn('free', 'FREE WATCH<small>Seeded skirmish, your rules</small>', 'col', 'id="m-free"') +
-      btn('settings', 'SETTINGS<small>Sound · haptics · progress</small>', 'dim col', 'id="m-settings"') +
+      btn('settings', 'SETTINGS<small>Sound · haptics · progress · save code</small>', 'dim col', 'id="m-settings"') +
       `<div class="sub" style="margin-top:14px">a game by Longlight Interactive${RS.VERSION ? ' · V' + RS.VERSION : ''}</div>`);
   }
 
@@ -676,7 +699,79 @@
       `<div class="box"><div class="sec">PROGRESS</div><p style="margin-bottom:8px">Campaign: shift ${Math.min(camp.next + 1, CP().shifts.length)} of ${CP().shifts.length}${camp.next >= CP().shifts.length ? ' (complete)' : ''}.</p>` +
       (resetArm ? `<p class="red" style="margin-bottom:8px">Erase all campaign progress? This cannot be undone.</p><div class="row2">${btn('resetyes', 'ERASE', 'red', 'id="m-resetyes"')}${btn('resetno', 'CANCEL', 'dim')}</div>`
         : btn('reset', 'RESET PROGRESS', 'amb', 'id="m-reset"')) + `</div>` +
+      (RS.savecode ? `<div class="box" id="m-codebox"><div class="sec">SAVE CODE</div><p class="muted" style="margin-bottom:8px">Move your progress to another phone or browser.</p>` +
+        (codeNote ? `<p class="${codeNote.cls}" id="m-codenote" role="status" style="margin-bottom:8px">${esc(codeNote.text)}</p>` : '') +
+        `<div class="row2">${btn('backup', 'BACK UP', '', 'id="m-backup"')}${btn('restore', 'RESTORE', '', 'id="m-restore"')}</div></div>` : '') +
       btn('menu', '◂ MENU', 'dim'));
+  }
+
+  /* ---------- save codes (savecode.js): BACK UP shows the code, RESTORE reads one back ---------- */
+  function backup() {
+    let code = '';
+    const skipped = [];                       // saved data too broken to pack (very unlikely): say so instead of hiding it
+    try { code = RS.savecode.make(skipped); } catch (e) { console.warn('[meta] save code', e); }
+    show('backup', `<div class="kick">SAVE CODE</div><h2>BACK UP</h2>` +
+      `<p class="muted">This code is all your progress as one line of text. Keep it in your notes, then use RESTORE to bring it back on any phone or browser.</p>` +
+      `<textarea class="code" id="m-code" rows="6" readonly spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Your save code">${esc(code)}</textarea>` +
+      `<p class="codemsg ${code ? 'muted' : 'red'}" id="m-codemsg" role="status" aria-live="polite">${code ? `${code.length} characters` : "Couldn't make a save code right now."}</p>` +
+      (skipped.length ? `<p class="amber" style="font-size:12px">Some saved data couldn't be read, so this code leaves it out: ${esc(skipped.join(', '))}.</p>` : '') +
+      btn('copycode', 'COPY CODE', 'pri', `id="m-copycode" ${code ? '' : 'disabled'}`) + btn('settings', '◂ SETTINGS', 'dim'));
+  }
+  function copyCode() {
+    const ta = document.getElementById('m-code'), st = document.getElementById('m-codemsg');
+    if (!ta || !ta.value) return;
+    const say = (text, cls) => { if (st) { st.textContent = text; st.className = 'codemsg ' + cls; } };
+    const copied = () => say('Copied. Paste it somewhere safe, like your notes app.', 'ok');
+    const fallback = () => {                 // older browsers, or the clipboard is not allowed: select it and try the old copy command
+      let ok = false;
+      try { ta.focus(); ta.select(); ta.setSelectionRange(0, ta.value.length); ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      if (ok) copied(); else say('Code selected. Press and hold it, then tap Copy.', 'amber');
+    };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(copied, fallback);
+      else fallback();
+    } catch (e) { fallback(); }
+  }
+  function restoreScr() {
+    restorePend = null;
+    show('restore', `<div class="kick">SAVE CODE</div><h2>RESTORE</h2>` +
+      `<p class="muted">Paste a code from BACK UP. Spaces and line breaks are fine.</p>` +
+      `<textarea class="code" id="m-rcode" rows="6" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off" placeholder="RS1:…" aria-label="Paste your save code" aria-describedby="m-rmsg">${esc(restoreText)}</textarea>` +
+      `<p class="codemsg red" id="m-rmsg" role="alert"></p><div id="m-rcheck" style="display:flex;flex-direction:column;gap:10px">${checkBtn()}</div>` +
+      btn('settings', '◂ SETTINGS', 'dim'));
+  }
+  const checkBtn = () => btn('checkcode', 'CHECK CODE ▸', 'pri', 'id="m-checkcode"');
+  /** CHECK CODE: read the pasted code; a good one shows what it holds and asks before anything is replaced. */
+  function checkCode() {
+    const ta = document.getElementById('m-rcode'), msg = document.getElementById('m-rmsg'), box = document.getElementById('m-rcheck');
+    if (!ta || !box) return;
+    restoreText = ta.value;
+    let data;
+    try { data = RS.savecode.read(ta.value); } catch (e) { restorePend = null; if (msg) msg.textContent = (e && e.message) || "That code didn't work."; return; }
+    restorePend = data;
+    if (msg) msg.textContent = '';
+    box.innerHTML = `<div class="box" id="m-rsum"><div class="sec">THIS CODE HAS</div><ul>${RS.savecode.summary(data).map(l => `<li>${esc(l)}</li>`).join('')}</ul>` +
+      `<p class="amber" style="margin-top:6px">Restoring replaces the progress on this device. This cannot be undone.</p></div>` +
+      `<div class="row2">${btn('restoreyes', 'RESTORE', 'red', 'id="m-restoreyes"')}${btn('restoreno', 'CANCEL', 'dim', 'id="m-restoreno"')}</div>`;
+    const no = document.getElementById('m-restoreno'); if (no) no.focus();   // keyboard: land on the safe choice
+  }
+  function cancelRestore() {
+    restorePend = null;
+    const box = document.getElementById('m-rcheck'); if (box) box.innerHTML = checkBtn();
+  }
+  function doRestore() {
+    const data = restorePend; restorePend = null;
+    if (!data) return restoreScr();
+    let r;
+    try { r = RS.savecode.apply(data); } catch (e) {
+      restoreScr(); const msg = document.getElementById('m-rmsg'); if (msg) msg.textContent = (e && e.message) || "That code didn't work.";
+      return;
+    }
+    loadAll(); applySettings();               // re-read every key, so the menus show the restored progress straight away
+    buy = null; lastEnd = null; mode = null; resetArm = false; restoreText = '';
+    codeNote = r.stored ? { cls: 'ok', text: 'Progress restored from your save code.' }
+      : { cls: 'amber', text: 'Progress restored for this visit only. This browser is blocking storage, so it will be gone when you close the page.' };
+    settings();
   }
 
   /* ---------- pause ---------- */
@@ -721,7 +816,7 @@
     const a = el.dataset.m;
     if (a !== 'noop') tap();
     switch (a) {
-      case 'menu': resetArm = false; stopReplay(); return menu();
+      case 'menu': resetArm = false; codeNote = null; stopReplay(); return menu();
       case 'map': return map();
       case 'pick': return pick(+el.dataset.i);
       case 'begin': return startShift(curDef);
@@ -756,7 +851,13 @@
       case 'haptics': cfg.haptics = !cfg.haptics; applySettings(); save('settings', cfg); if (cfg.haptics) try { navigator.vibrate && navigator.vibrate(20); } catch (x) { /* */ } return settings();
       case 'reset': resetArm = true; return settings();
       case 'resetno': resetArm = false; return settings();
-      case 'resetyes': resetArm = false; reset(); return settings();
+      case 'resetyes': resetArm = false; codeNote = null; reset(); return settings();
+      case 'backup': codeNote = null; return backup();
+      case 'copycode': return copyCode();
+      case 'restore': codeNote = null; return restoreScr();
+      case 'checkcode': return checkCode();
+      case 'restoreno': return cancelRestore();
+      case 'restoreyes': return doRestore();
       case 'resume': return resume();
       case 'restart': return restart();
       case 'quit': return quit();
@@ -766,6 +867,7 @@
     if (e.target.id === 'm-diff') { readFree(); const l = document.getElementById('m-dlabel'); if (l) l.textContent = diffLabel(freeOpts.diff) + ' ' + freeOpts.diff.toFixed(2); save('free', freeOpts); }
     else if (e.target.id === 'm-seed') { readFree(); save('free', freeOpts); }
     else if (e.target.id === 'm-sseed') { readSurv(); save('survival', surv); }
+    else if (e.target.id === 'm-rcode') { restoreText = e.target.value; if (restorePend) cancelRestore(); }   // edited after CHECK: check again
     else if (e.target.id === 'm-rpscrub' && rp) { rp.t = rp.t0 + (rp.t1 - rp.t0) * (+e.target.value / 1000); drawReplay(); }
   }
 
@@ -789,17 +891,7 @@
     document.addEventListener('keydown', e => { if (e.key === 'Escape' || e.key === 'p') { if (screen === 'pause') resume(); else pause(); } });
     document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
 
-    camp = loadCamp();
-    cfg = Object.assign({ sound: true, haptics: true, voice: true }, load('settings', {}));
-    const fo = load('free', null);
-    freeOpts = Object.assign(defaultFree(), fo && typeof fo === 'object' ? fo : {});
-    freeOpts.ev = Object.assign({}, freeOpts.ev);
-    const so = load('survival', null);
-    surv = { seed: 1 + Math.floor(Math.random() * 99999), best: [] };
-    if (so && typeof so === 'object') {
-      if (+so.seed > 0) surv.seed = Math.floor(+so.seed);
-      if (Array.isArray(so.best)) surv.best = so.best.filter(b => b && typeof b.score === 'number').slice(0, 5);
-    }
+    loadAll();
     wrapVibrate(); applySettings();
 
     RS.bus.on('SHIFT_END', onEnd);
@@ -841,7 +933,7 @@
     menu();
   }
 
-  const SCREENS = { menu, map, free, settings, resupply, debrief, survival: survSetup, surv: survSetup };
+  const SCREENS = { menu, map, free, settings, resupply, debrief, survival: survSetup, surv: survSetup, backup, restore: restoreScr };
   RS.meta = { init, startShift, show: n => SCREENS[n] && SCREENS[n](),
     pause, resume, restart, quit, grade, reset, buildFree, buildSurvival, survivalScore, medals, threatWords, wxLine, MEDALS,
     replay: { play: on => rpPlay(on), seek: t => { if (rp) { rp.t = Math.max(rp.t0, Math.min(rp.t1, t)); drawReplay(); } }, get state() { return rp && { t: rp.t, t0: rp.t0, t1: rp.t1, playing: rp.playing, R: rp.R }; } },
