@@ -4,6 +4,7 @@
      flow     390×844 campaign flow: menu → map → briefing → shift → pause → debrief → resupply → settings → reload → free watch
      360      360×740 layout pass over every meta screen
      blocked  localStorage blocked: the memory fallback keeps the campaign going
+     code     360×740 save codes: real progress → SETTINGS → BACK UP → wipe storage → RESTORE (bad code, then the real one) → same progress
    META_ONLY=flow (or a comma list, e.g. META_ONLY=360,blocked) runs only those sections; each section uses its own page.
    Under software WebGL (~1-4 fps, the title scene renders behind every menu) flow takes 3-5 min and 360+blocked 2-4 min,
    so where a run is capped at 500 s use META_ONLY=flow, then META_ONLY=360,blocked.
@@ -13,7 +14,7 @@ const fs = require('fs'), path = require('path');
 const { launch, newPage, URL, SHOTS } = require('./_browser');
 fs.mkdirSync(SHOTS, { recursive: true });
 
-const SECTIONS = ['flow', '360', 'blocked'];
+const SECTIONS = ['flow', '360', 'blocked', 'code'];
 const ONLY = (process.env.META_ONLY || '').split(',').map(s => s.trim()).filter(Boolean);
 for (const s of ONLY) if (!SECTIONS.includes(s)) { console.error(`META_ONLY: unknown section "${s}" (have ${SECTIONS.join(', ')})`); process.exit(1); }
 const want = s => !ONLY.length || ONLY.includes(s);
@@ -264,12 +265,75 @@ async function blocked(browser) {
   await ctx.close();
 }
 
+/* ================= save codes (savecode.js) ================= */
+async function codes(browser) {
+  console.log('-- 360x740 save codes');
+  const { ctx, page, errors } = await open(browser, { width: 360, height: 740 });
+  const saved = () => page.evaluate(() => Object.fromEntries(Object.keys(localStorage).filter(k => k.startsWith('redskies.v1.')).sort().map(k => [k, localStorage.getItem(k)])));
+  await boot(page);
+  // real progress: pass shift 1, buy at the resupply, plus a survival board, training done and sound off
+  await page.tap('#m-campaign'); await page.tap('[data-m=pick][data-i="0"]'); await page.tap('#m-begin'); await frames(page, 2);
+  await autoPlay(page, 60);
+  await screenIs(page, 'debrief');
+  if (await page.evaluate(() => !!document.getElementById('m-toresupply'))) {
+    await page.tap('#m-toresupply'); await page.tap('[data-m=inc][data-w=dart]'); await page.tap('#m-confirm'); await screenIs(page, 'briefing');
+    await page.tap('[data-m=map]');
+  } else ok(false, 'code: shift 1 passed');
+  await page.evaluate(() => { RS.save('survival', { seed: 777, best: [{ score: 12650, waves: 11, kills: 15, seed: 777, at: Date.now() }] }); RS.save('tutorial', { done: true }); });
+  await page.tap('[data-m=menu]'); await page.tap('#m-settings'); await page.tap('#m-sound');
+  const before = await saved(), next = await page.evaluate(() => RS.meta.campaign.next);
+  ok(next === 1 && Object.keys(before).length === 4, 'progress to back up: ' + Object.keys(before).join(', '));
+
+  await page.tap('#m-backup');
+  ok(await screenIs(page, 'backup'), 'SETTINGS → BACK UP');
+  const code = await page.inputValue('#m-code');
+  ok(/^RS1:[A-Za-z0-9_-]+$/.test(code) && await page.evaluate(() => document.getElementById('m-code').readOnly), `read-only box holds an RS1: code (${code.length} chars)`);
+  await page.tap('#m-copycode');
+  await page.waitForFunction(() => /Copied|selected/.test(document.getElementById('m-codemsg').textContent), null, { timeout: 10000 }).catch(() => {});
+  ok(/Copied|selected/.test(await page.textContent('#m-codemsg')), 'COPY CODE: ' + await page.textContent('#m-codemsg'));
+  await layout(page, 'code backup'); await shot(page, 'code_backup');
+
+  // a new browser: nothing saved
+  await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: 'load' }); await page.tap('#start');
+  await page.waitForFunction(() => RS.meta && RS.meta.screen === 'menu', null, { timeout: 60000 });
+  ok(await page.evaluate(() => RS.meta.campaign.next === 0), 'storage wiped: campaign back at shift 1');
+  await page.tap('#m-settings'); await page.tap('#m-restore');
+  ok(await screenIs(page, 'restore'), 'SETTINGS → RESTORE');
+  await page.fill('#m-rcode', code.slice(0, -12));
+  await page.tap('#m-checkcode');
+  ok(/damaged or incomplete/.test(await page.textContent('#m-rmsg')) && !await page.$('#m-restoreyes'), 'cut-off code: friendly error, no restore offered');
+  await shot(page, 'code_restore_error');
+  await page.fill('#m-rcode', 'GG1:' + code.slice(4));
+  await page.tap('#m-checkcode');
+  ok(/different game/.test(await page.textContent('#m-rmsg')), 'GG1: code: "different game"');
+  ok(await page.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('redskies.v1.')).length === 0), 'nothing written by the bad codes');
+  await page.fill('#m-rcode', code.slice(0, 40) + '\n' + code.slice(40));
+  await page.tap('#m-checkcode');
+  ok(!!await page.$('#m-restoreyes') && /shift 2 of 6/.test(await page.textContent('#m-rsum')) && await page.evaluate(() => document.activeElement.id === 'm-restoreno'),
+    'good code: summary + RESTORE / CANCEL, focus on CANCEL');
+  await layout(page, 'code restore'); await shot(page, 'code_restore_confirm');
+  await page.tap('#m-restoreno');
+  ok(!await page.$('#m-restoreyes') && await page.evaluate(() => RS.meta.campaign.next === 0), 'CANCEL changes nothing');
+  await page.tap('#m-checkcode'); await page.tap('#m-restoreyes');
+  ok(await screenIs(page, 'settings') && /restored/.test(await page.textContent('#m-codenote')), 'RESTORE → settings, "Progress restored"');
+  ok(JSON.stringify(await saved()) === JSON.stringify(before), 'localStorage identical to before the wipe');
+  ok(await page.evaluate(() => RS.meta.campaign.next === 1 && RS.meta.survival.best.length === 1 && RS.audio.muted === true && RS.tutorial.done), 'restored in place: campaign, survival board, sound off, training done');
+  await shot(page, 'code_restored');
+  await page.reload({ waitUntil: 'load' }); await page.tap('#start');
+  await page.waitForFunction(() => RS.meta && RS.meta.screen === 'menu', null, { timeout: 60000 });
+  ok(await page.evaluate(() => RS.meta.campaign.next === 1 && /Shift 2/.test(document.getElementById('m-campaign').textContent)), 'after a reload: menu says Next: Shift 2');
+  ok(errors.length === 0, 'no console errors (save codes)' + errText(errors));
+  await ctx.close();
+}
+
 (async () => {
   const browser = await launch();
   const t0 = Date.now();
   if (want('flow')) await flow(browser);
   if (want('360')) await narrow(browser);
   if (want('blocked')) await blocked(browser);
+  if (want('code')) await codes(browser);
   await browser.close();
   console.log(`  INFO ${((Date.now() - t0) / 1000).toFixed(0)} s` + (ONLY.length ? ' (META_ONLY=' + ONLY.join(',') + ')' : ''));
   console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');

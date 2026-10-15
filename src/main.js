@@ -1,5 +1,6 @@
 /* =====================================================================
    RED SKIES — main.js   RS.main : boot, fixed-step loop, resize, save/load.
+   Save keys live in localStorage as 'redskies.v1.' + key (RS.save / RS.load / RS.remove); save codes: savecode.js.
    ===================================================================== */
 (function () {
   const RS = window.RS;
@@ -18,6 +19,11 @@
     if (s == null) s = mem[key];
     if (s == null) return fallback;
     try { return JSON.parse(s); } catch (e) { return fallback; }
+  };
+  // forget one key (save codes: restoring a code that has nothing saved for it). true = it reached localStorage.
+  RS.remove = function (key) {
+    delete mem[key];
+    try { localStorage.removeItem(SAVE_KEY + key); return true; } catch (e) { return false; }
   };
 
   let started = false, prepared = false, acc = 0, last = 0, frames = 0, fpsT = 0, fps = 0, debugOn = false;
