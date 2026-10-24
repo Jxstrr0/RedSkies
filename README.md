@@ -1,6 +1,6 @@
 # Red Skies
 
-A phone-first air-defence game by Longlight Interactive. The current version is in [`VERSION`](VERSION); changes are logged in [`plan/status.md`](plan/status.md).
+A phone-first, portrait-only air-defence game by Longlight Interactive. The current version is in [`VERSION`](VERSION); changes are logged in [`plan/status.md`](plan/status.md). Working on the code? Read [`CLAUDE.md`](CLAUDE.md) first; [`DESIGN.md`](DESIGN.md) describes the game as built.
 
 You are the fire-control officer of SAM battery *Kessel*, Republic of Varenna.
 Watch the radar, sort friend from foe, and hold your fire until you are sure.
@@ -14,7 +14,7 @@ three.js included, so it also plays offline. It is laid out for a phone held in
 portrait. Two title fonts load from Google Fonts when a connection is available;
 without one, the title uses fallback fonts.
 
-To play from GitHub, enable **Settings → Pages** for this repository and serve the root folder.
+The game is live at https://jxstrr0.github.io/RedSkies/ (GitHub Pages serves the repo root of `main`, so every merge to `main` goes live).
 
 ### How a shift plays
 
@@ -94,7 +94,7 @@ This writes three files:
 ## Tests
 
 ```sh
-npm test                 # node tests: test/*.test.js (sim, content, campaign, fixes, save codes); no install needed
+npm test                 # node tests: test/*.test.js (sim, content, campaign, fixes, save codes, training); no install needed
 npm run check:browser    # Playwright checks: test/*.check.js (browser, ui, meta, scene, audio)
 npm run balance          # tools/balance.js: a bot operator plays shifts and prints outcomes per weapon
 ```

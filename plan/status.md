@@ -1,10 +1,11 @@
 # Red Skies — status
 
-Read this first in a new session; it replaces re-exploring the code. Update it after every publish.
+In a new session read `CLAUDE.md` first, then this file (history, decisions and the back-burner list). `DESIGN.md` describes the game as built. Update this file after every publish.
 
 - **Version:** see `VERSION` (Major.Minor.Patch.Build; Major = overhaul, Minor = feature batch, Patch = tweak/fix, Build = republish). Bump before every publish.
-- **Repo:** https://github.com/Jxstrr0/Red-Skies- (`main` is the default branch)
-- **Live artifact:** https://claude.ai/artifact/2vVrrJw4wg99sdZw6rptYP. Publish `dist/weapons_hold.artifact.html` to this same URL, labelled with the version.
+- **Repo:** https://github.com/Jxstrr0/RedSkies (`main` is the default branch)
+- **Live site:** https://jxstrr0.github.io/RedSkies/ (GitHub Pages serves the repo root of `main`, so every merge to `main` goes live; no deploy workflow). The Longlight Interactive website links here. Checked 2026-10-24: it serves V1.4.5.0 with save codes.
+- **Live artifact:** https://claude.ai/artifact/2vVrrJw4wg99sdZw6rptYP. Publish `dist/weapons_hold.artifact.html` to this same URL, labelled with the version. (The GitHub Pages site above is the main live copy now; the artifact is the older home.)
   - Last publish: V1.4.5.0 (artifact version 39), 2026-10-14. The source files are published alongside the page.
 - **Studio:** Longlight Interactive. The license is all rights reserved (`LICENSE`); three.js is MIT (`vendor/three.LICENSE`).
 
@@ -40,7 +41,7 @@ Read this first in a new session; it replaces re-exploring the code. Update it a
 
 ## Changelog
 
-- **Next (not published yet; bump `VERSION` before publishing)**: save codes. Settings → Save code → **Back up** shows all progress as one `RS1:` line with a Copy button; **Restore** takes a pasted code, shows what it holds and asks before replacing this device's progress. It carries the campaign, survival best runs, free watch setup, training and settings. Damaged, cut-off, other-game and newer-version codes get a plain message and change nothing. New `test/savecode.test.js`; `test/meta.check.js` has a `code` section (META_ONLY=code).
+- **1.4.5.0, second build (PR #8, merged 2026-10-15, live on GitHub Pages)**: save codes. `VERSION` was not bumped for this, so the live page still reads V1.4.5.0; pick the next number before the next release. Not republished to the claude.ai artifact (unverified). Settings → Save code → **Back up** shows all progress as one `RS1:` line with a Copy button; **Restore** takes a pasted code, shows what it holds and asks before replacing this device's progress. It carries the campaign, survival best runs, free watch setup, training and settings. Damaged, cut-off, other-game and newer-version codes get a plain message and change nothing. New `test/savecode.test.js`; `test/meta.check.js` has a `code` section (META_ONLY=code).
 - **1.4.5.0**: studio renamed from Prairie Blue Studio to Longlight Interactive (title credit, menu credit, LICENSE, README, file headers).
 - **1.4.4.0** (Training Watch)
   - Every training shot hits: no Pk roll, no dodging or chaff, an engaged target cannot leave, and a salvo's spare round vanishes without a MISS. The flag is tested before any `rand()`, and 108 normal-shift fingerprint runs are byte-identical to 1.4.3.0.
