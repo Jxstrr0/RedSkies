@@ -4,7 +4,7 @@ In a new session read `CLAUDE.md` first, then this file (history, decisions and 
 
 - **Version:** see `VERSION` (Major.Minor.Patch.Build; Major = overhaul, Minor = feature batch, Patch = tweak/fix, Build = republish). Bump before every publish.
 - **Repo:** https://github.com/Jxstrr0/RedSkies (`main` is the default branch)
-- **Live site:** https://jxstrr0.github.io/RedSkies/ (GitHub Pages serves the repo root of `main`, so every merge to `main` goes live; no deploy workflow). The Longlight Interactive website links here. Checked 2026-10-24: it serves V1.4.5.0 with save codes.
+- **Live site:** https://jxstrr0.github.io/RedSkies/ (GitHub Pages serves the repo root of `main`, so every merge to `main` goes live; no deploy workflow). The Longlight Interactive website links here. From V1.5.0.0 (2026-10-24) the live page's version matches its features again.
 - **Live artifact:** https://claude.ai/artifact/2vVrrJw4wg99sdZw6rptYP. Publish `dist/weapons_hold.artifact.html` to this same URL, labelled with the version. (The GitHub Pages site above is the main live copy now; the artifact is the older home.)
   - Last publish: V1.4.5.0 (artifact version 39), 2026-10-14. The source files are published alongside the page.
 - **Studio:** Longlight Interactive. The license is all rights reserved (`LICENSE`); three.js is MIT (`vendor/three.LICENSE`).
@@ -33,6 +33,7 @@ In a new session read `CLAUDE.md` first, then this file (history, decisions and 
 - Pop-up helicopters hide until about 8–10 km, as the briefings say. They start just outside their pop-up range at the authored time. Shifts with helicopters are a little harder.
 - License: all rights reserved.
 - V1.4.5.0: the studio is Longlight Interactive (was Prairie Blue Studio).
+- V1.5.0.0: save codes get their own number. They are a new feature, so it is a Minor bump (Kelbo, 2026-10-24: pick a sensible number and go).
 - The title/cover shot keeps full-quality grass; the performance savings apply in play only.
 - V1.4.4.0 Training Watch:
   - Every shot the player fires in training hits: Lance, Dart and gun (`ShiftDef.sureHit`). Real watches are unchanged.
@@ -41,7 +42,8 @@ In a new session read `CLAUDE.md` first, then this file (history, decisions and 
 
 ## Changelog
 
-- **1.4.5.0, second build (PR #8, merged 2026-10-15, live on GitHub Pages)**: save codes. `VERSION` was not bumped for this, so the live page still reads V1.4.5.0; pick the next number before the next release. Not republished to the claude.ai artifact (unverified). Settings → Save code → **Back up** shows all progress as one `RS1:` line with a Copy button; **Restore** takes a pasted code, shows what it holds and asks before replacing this device's progress. It carries the campaign, survival best runs, free watch setup, training and settings. Damaged, cut-off, other-game and newer-version codes get a plain message and change nothing. New `test/savecode.test.js`; `test/meta.check.js` has a `code` section (META_ONLY=code).
+- **1.5.0.0** (2026-10-24): version bump only, no game change. Save codes shipped in PR #8 (2026-10-15) without a bump, so the live page read V1.4.5.0 while carrying a new feature. 1.5.0.0 is that feature batch. Not republished to the claude.ai artifact.
+- **1.4.5.0, second build (PR #8, merged 2026-10-15, live on GitHub Pages)**: save codes, released as 1.5.0.0 above. Settings → Save code → **Back up** shows all progress as one `RS1:` line with a Copy button; **Restore** takes a pasted code, shows what it holds and asks before replacing this device's progress. It carries the campaign, survival best runs, free watch setup, training and settings. Damaged, cut-off, other-game and newer-version codes get a plain message and change nothing. New `test/savecode.test.js`; `test/meta.check.js` has a `code` section (META_ONLY=code).
 - **1.4.5.0**: studio renamed from Prairie Blue Studio to Longlight Interactive (title credit, menu credit, LICENSE, README, file headers).
 - **1.4.4.0** (Training Watch)
   - Every training shot hits: no Pk roll, no dodging or chaff, an engaged target cannot leave, and a salvo's spare round vanishes without a MISS. The flag is tested before any `rand()`, and 108 normal-shift fingerprint runs are byte-identical to 1.4.3.0.
