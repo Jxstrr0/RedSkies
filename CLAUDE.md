@@ -38,7 +38,7 @@ npm run balance           # tools/balance.js: a bot plays the campaign shifts
   artifact flavour with no doctype/html/head/body).
 - The build fails if a file in `src/` is missing from `ORDER`, or the other way
   round. A new module goes into `ORDER` in load order.
-- `VERSION` holds `Major.Minor.Patch.Build` (now 1.4.5.0). The build stamps it
+- `VERSION` holds `Major.Minor.Patch.Build` (now 1.5.0.0). The build stamps it
   into the `<title>` and `window.RS.VERSION`. Major = overhaul, Minor = feature
   batch, Patch = tweak or fix, Build = republish. Bump it before a release.
 - After any `src/` change: run `node build.js` and commit `index.html` with it.
@@ -121,12 +121,12 @@ npm run balance           # tools/balance.js: a bot plays the campaign shifts
 
 ## Current status
 
-- V1.4.5.0 is on `main` and live. Built and playable: the Training Watch, a
+- V1.5.0.0 is on `main` and live. Built and playable: the Training Watch, a
   six-shift campaign with three variants per shift, Free watch, Survival,
   medals, the resupply shop, save codes, the 3-D operator cabin with the EO
   camera, procedural audio and haptics.
-- Save codes (PR #8, 2026-10-15) were merged after the 1.4.5.0 bump and are
-  live under that number. Pick the next version number before the next release.
+- Save codes (PR #8, 2026-10-15) are the 1.5 feature; 1.5.0.0 (2026-10-24)
+  gave them their own number. Next feature batch is 1.6.0.0, next fix 1.5.1.0.
 - Known gaps: the back-burner list in `plan/status.md` (contrast and touch
   target sizes, keyboard access, a few perf ideas that need an on-device test,
   small sim and content items). The browser checks do not run in CI by default.
