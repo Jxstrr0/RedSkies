@@ -1,6 +1,6 @@
 # Red Skies: the game as built
 
-This describes what is in the code today (V1.4.5.0). Numbers come from
+This describes what is in the code today (V1.5.0.0). Numbers come from
 `src/content.js`, `src/campaign.js`, `src/sim.js` and `src/meta.js`. Change
 them there, then update this file.
 
@@ -181,7 +181,7 @@ From `grade()` in `campaign.js`.
 - `campaign` holds the next shift, unlocked count, best grades, results,
   reserve, bank, medals and the variant picks. `survival` holds the seed and
   best runs. `free` holds the setup. `settings` holds sound and haptics.
-- **Save codes** (`savecode.js`, 1.4.5.0): Settings → SAVE CODE → BACK UP shows
+- **Save codes** (`savecode.js`, 1.5.0.0): Settings → SAVE CODE → BACK UP shows
   one line starting `RS1:` (base64url of LZW-compressed JSON plus a 6-character
   checksum) with a COPY CODE button. RESTORE takes a pasted code, CHECK CODE
   shows what it holds, RESTORE replaces this device's progress all at once.
