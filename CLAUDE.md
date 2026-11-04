@@ -130,3 +130,27 @@ npm run balance           # tools/balance.js: a bot plays the campaign shifts
 - Known gaps: the back-burner list in `plan/status.md` (contrast and touch
   target sizes, keyboard access, a few perf ideas that need an on-device test,
   small sim and content items). The browser checks do not run in CI by default.
+
+## Longlight brand (studio pieces only)
+
+This game keeps its own look. Its fonts, colours and art style stay as they
+are, and game screens are never restyled to match the studio. The Longlight
+brand applies only to studio pieces: the studio logo or splash, the
+"Longlight Interactive" credit line, the studio block on a credits or about
+screen, and any link back to the studio site.
+
+- **Logo:** the horizon lockup, a half-set clay sun on a long horizon line
+  with LONGLIGHT above INTERACTIVE. Use the official files from the studio
+  site's press kit (https://jxstrr0.github.io/Kelbo.Website/press.html; the
+  files are `assets/press/longlight-logo-dark` and `longlight-logo-light`,
+  SVG plus 2x PNG, in `Jxstrr0/Kelbo.Website`). Copy them into this repo;
+  never hotlink, redraw or recolour them, or swap the letters for live text.
+- **Colours, inside studio pieces only:** Clay `#D97757`, Purple `#7B3FC4`,
+  Slate `#141413`, Ivory `#FAF9F5`, Lilac `#B48CE8`. Nothing else in the
+  logo or the studio block.
+- **Font, inside studio pieces only:** Space Grotesk 500/700. If a studio
+  piece uses it, self-host it; don't add a new font host or outside request.
+- **Name:** always "Longlight Interactive" in full. Credit line:
+  "© year Kelbo / Longlight Interactive" (the studio isn't a registered
+  business yet). Never Kelbo's real name or initials.
+- **Studio site:** https://jxstrr0.github.io/Kelbo.Website/
