@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Red Skies icon: a green radar scope with its sweep and one red hostile contact. Source for tools/make-icons.js -->
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="45%" r="75%">
+      <stop offset="0" stop-color="#0d1a12"/><stop offset="1" stop-color="#050707"/>
+    </radialGradient>
+    <linearGradient id="sweep" gradientUnits="userSpaceOnUse" x1="256" y1="256" x2="420" y2="120">
+      <stop offset="0" stop-color="#45ff84" stop-opacity=".05"/><stop offset="1" stop-color="#45ff84" stop-opacity=".5"/>
+    </linearGradient>
+    <radialGradient id="glow"><stop offset="0" stop-color="#ff4b3a" stop-opacity=".7"/><stop offset="1" stop-color="#ff4b3a" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <g id="art">
+  <g fill="none" stroke="#2fbf62" stroke-width="10">
+    <circle cx="256" cy="256" r="196" stroke="#45ff84" stroke-width="14"/>
+    <circle cx="256" cy="256" r="131" opacity=".7"/>
+    <circle cx="256" cy="256" r="66" opacity=".7"/>
+    <path d="M256 60V452M60 256H452" opacity=".45" stroke-width="6"/>
+  </g>
+  <!-- sweep wedge trailing behind the beam (beam points up-right) -->
+  <path d="M256 256 L256 60 A196 196 0 0 1 395 117 Z" fill="url(#sweep)"/>
+  <path d="M256 256 L395 117" stroke="#45ff84" stroke-width="12" stroke-linecap="round"/>
+  <!-- red contact: hostile diamond -->
+  <circle cx="304" cy="150" r="66" fill="url(#glow)"/>
+  <path d="M304 112 L342 150 L304 188 L266 150 Z" fill="#ff4b3a" stroke="#ffd2cc" stroke-width="6" stroke-linejoin="round"/>
+  <circle cx="256" cy="256" r="12" fill="#45ff84"/>
+  </g>
+</svg>
