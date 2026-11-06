@@ -38,7 +38,7 @@ npm run balance           # tools/balance.js: a bot plays the campaign shifts
   artifact flavour with no doctype/html/head/body).
 - The build fails if a file in `src/` is missing from `ORDER`, or the other way
   round. A new module goes into `ORDER` in load order.
-- `VERSION` holds `Major.Minor.Patch.Build` (now 1.6.0.0). The build stamps it
+- `VERSION` holds `Major.Minor.Patch.Build` (now 1.6.1.0). The build stamps it
   into the `<title>` and `window.RS.VERSION`. Major = overhaul, Minor = feature
   batch, Patch = tweak or fix, Build = republish. Bump it before a release.
 - After any `src/` change: run `node build.js` and commit `index.html` with it.
@@ -105,6 +105,7 @@ npm run balance           # tools/balance.js: a bot plays the campaign shifts
 | `test/*.check.js`, `test/_browser.js` | Playwright checks: browser, ui, meta, scene, audio; shared setup |
 | `test/run.js` | Runs every test file and exits 1 if any failed |
 | `tools/balance.js` | The bot operator; run before and after gameplay changes |
+| `tools/make-icons.js`, `icons/`, `manifest.webmanifest` | Home-screen icon: `icons/icon.svg` is the source; the script (run by hand, needs Playwright) renders the PNGs |
 | `plan/status.md` | Version history, decisions, back-burner list |
 | `VERSION`, `build.js`, `index.html`, `dist/` | Version, build script, built page, build outputs (`dist/` is ignored by git) |
 
@@ -124,13 +125,14 @@ npm run balance           # tools/balance.js: a bot plays the campaign shifts
 
 ## Current status
 
-- V1.6.0.0 is on `main` and live. Built and playable: the Training Watch, a
+- V1.6.1.0 is on `main` and live. Built and playable: the Training Watch, a
   six-shift campaign with three variants per shift, Free watch, Survival,
   medals, the resupply shop, save codes with backup files, the 3-D operator
   cabin with the EO camera, procedural audio and haptics.
 - Save codes (PR #8, 2026-10-15) are the 1.5 feature; 1.6.0.0 (2026-11-06)
-  adds save safety (backup files, storage persistence, a backup reminder).
-  Next feature batch is 1.7.0.0, next fix 1.6.1.0.
+  adds save safety (backup files, storage persistence, a backup reminder); 1.6.1.0
+  adds the home-screen icon and web app manifest (`icons/`, `manifest.webmanifest`).
+  Next feature batch is 1.7.0.0, next fix 1.6.2.0.
 - Known gaps: the back-burner list in `plan/status.md` (contrast and touch
   target sizes, keyboard access, a few perf ideas that need an on-device test,
   small sim and content items). The browser checks do not run in CI by default.

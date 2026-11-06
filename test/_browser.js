@@ -12,6 +12,8 @@ const ROOT = path.join(__dirname, '..');
 const URL = 'file://' + path.join(ROOT, 'dist', 'weapons_hold.html');
 const SHOTS = path.join(__dirname, 'shots');
 const FONTS = /fonts\.(googleapis|gstatic)\.com/;
+// the home-screen icons and manifest sit at the repo root, not next to dist/weapons_hold.html, so their misses are not counted
+const ICONS = /\/(manifest\.webmanifest|icons\/[^/]+)$/;
 const GL_ARGS = ['--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'];
 
 // sandbox fallback: a preinstalled Chromium under PLAYWRIGHT_BROWSERS_PATH (e.g. /opt/pw-browsers)
@@ -40,7 +42,7 @@ async function launch(extraArgs) {
 async function newPage(browser, ctxOpts) {
   const ctx = await browser.newContext(Object.assign({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, ctxOpts || {}));
   const page = await ctx.newPage(), errors = [];
-  page.on('console', m => { if (m.type() === 'error' && !FONTS.test((m.location() || {}).url || '')) errors.push('console: ' + m.text()); });
+  page.on('console', m => { if (m.type() === 'error' && !FONTS.test((m.location() || {}).url || '') && !ICONS.test((m.location() || {}).url || '')) errors.push('console: ' + m.text()); });
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   await page.route(FONTS, r => r.abort());
   return { ctx, page, errors };
