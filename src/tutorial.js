@@ -443,6 +443,7 @@
   /** Training complete or skipped: mark done, end the shift, back to the main menu. */
   function finish() {
     try { if (RS.save) RS.save('tutorial', { done: true }); } catch (e) { /* storage blocked */ }
+    if (RS.storage) RS.storage.keep();                      // V1.6: progress worth keeping, ask the browser to keep storage
     memDone = true;
     stop();
     if (RS.main && RS.main.paused && RS.main.resume) RS.main.resume();

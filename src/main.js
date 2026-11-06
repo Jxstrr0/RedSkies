@@ -1,6 +1,7 @@
 /* =====================================================================
    RED SKIES — main.js   RS.main : boot, fixed-step loop, resize, save/load.
    Save keys live in localStorage as 'redskies.v1.' + key (RS.save / RS.load / RS.remove); save codes: savecode.js.
+   RS.storage (V1.6): asks the browser to keep this site's storage (navigator.storage.persist) and reports whether it does.
    ===================================================================== */
 (function () {
   const RS = window.RS;
@@ -24,6 +25,32 @@
   RS.remove = function (key) {
     delete mem[key];
     try { localStorage.removeItem(SAVE_KEY + key); return true; } catch (e) { return false; }
+  };
+
+  /* V1.6 save safety: every Longlight game shares one browser origin (jxstrr0.github.io), so when a phone runs low on
+     space the browser can clear all of their storage at once. persist() asks it to keep ours. Asked at most once per page
+     load, and only once there is progress worth keeping (meta.js calls keep() after a shift is saved, a backup or a restore;
+     tutorial.js after training). Firefox shows a prompt for it; Chrome and Safari decide quietly. Never throws.
+       RS.storage.persisted() -> Promise<true|false|null>   null = this browser has no such API (hide the status line)
+       RS.storage.keep()      -> Promise<true|false|null>   asks once; later calls just report the current state        */
+  let keepAsked = null;
+  const sm = () => { try { return navigator.storage && navigator.storage.persisted && navigator.storage.persist ? navigator.storage : null; } catch (e) { return null; } };
+  RS.storage = {
+    persisted() {
+      const m = sm();
+      if (!m) return Promise.resolve(null);
+      try { return Promise.resolve(m.persisted()).then(v => !!v, () => null); } catch (e) { return Promise.resolve(null); }
+    },
+    keep() {
+      if (keepAsked) return keepAsked.then(() => RS.storage.persisted());
+      const m = sm();
+      if (!m) return Promise.resolve(null);
+      keepAsked = RS.storage.persisted().then(p => {
+        if (p !== false) return p;                          // already kept (or no API): nothing to ask
+        try { return Promise.resolve(m.persist()).then(v => !!v, () => false); } catch (e) { return false; }
+      }).catch(() => null);
+      return keepAsked;
+    }
   };
 
   let started = false, prepared = false, acc = 0, last = 0, frames = 0, fpsT = 0, fps = 0, debugOn = false;
