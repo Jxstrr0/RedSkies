@@ -19,6 +19,7 @@ In a new session read `CLAUDE.md` first, then this file (history, decisions and 
 - The contract is `src/contracts.js`: every event payload, state field and command. Update it with any API change.
 - The sim (`src/sim.js`) never touches the DOM; the node tests drive it headless.
 - Save codes (`src/savecode.js`, `RS.savecode`): Settings → Save code → Back up / Restore. `RS1:` + packed JSON of every `redskies.v1.` key + a checksum; restore checks everything before it writes, and replaces all keys at once.
+- Save safety (1.6.0.0): the same box has Save file / Load file (`red-skies-backup-YYYY-MM-DD.txt`) and a storage line; `RS.storage` in `main.js` asks the browser to keep storage (`navigator.storage.persist`); `settings.backupAt` drives the menu's backup reminder.
 - Tests:
   - `npm test` runs the node tests (`test/*.test.js`).
   - `npm run check:browser` runs the Playwright checks (`test/*.check.js`, shared setup in `test/_browser.js`).
@@ -33,6 +34,7 @@ In a new session read `CLAUDE.md` first, then this file (history, decisions and 
 - Pop-up helicopters hide until about 8–10 km, as the briefings say. They start just outside their pop-up range at the authored time. Shifts with helicopters are a little harder.
 - License: all rights reserved.
 - V1.4.5.0: the studio is Longlight Interactive (was Prairie Blue Studio).
+- V1.6.0.0 save safety (Kelbo asked for it in every Longlight game, 2026-11-06): ask the browser to keep storage, backup files next to the save code, and a quiet reminder. Small calls made here: the reminder sits on the main menu (BACK UP ▸ opens Settings at the save code box, LATER hides it for this visit); "progress" means a finished campaign shift or a survival run; the last-backup time lives in the existing `settings` key as `backupAt` (no new key), and restoring a code sets it to the code's own date, so a freshly restored phone is not nagged.
 - V1.5.0.0: save codes get their own number. They are a new feature, so it is a Minor bump (Kelbo, 2026-10-24: pick a sensible number and go).
 - The title/cover shot keeps full-quality grass; the performance savings apply in play only.
 - V1.4.4.0 Training Watch:
@@ -41,6 +43,8 @@ In a new session read `CLAUDE.md` first, then this file (history, decisions and 
   - After launch the coach card follows the camera: it explains OUT OF RANGE, then says when the camera has picked up the jet.
 
 ## Changelog
+
+- **1.6.0.0** (2026-11-06): save safety. Settings → Save code now also has **Save file** (the same `RS1:` code as `red-skies-backup-YYYY-MM-DD.txt`: the share sheet where the browser can share files, so iPhone offers Save to Files, else a download) and **Load file** (reads a file into Restore, so the same check and confirm run; a broken file gets the usual "damaged or incomplete" message). A line says whether the browser keeps the game's storage, and the game asks it to (`navigator.storage.persist`) once per visit after progress is saved, training ends, or a backup or restore. Copying the code or saving the file records `settings.backupAt`; with progress and no backup, or one 14+ days old, the main menu shows a small reminder once per visit. Node tests cover `backupAt` and file text; `test/meta.check.js` `code` section covers the reminder, Save file, Load file (broken and good). Not republished to the claude.ai artifact.
 
 - **1.5.0.0** (2026-10-24): version bump only, no game change. Save codes shipped in PR #8 (2026-10-15) without a bump, so the live page read V1.4.5.0 while carrying a new feature. 1.5.0.0 is that feature batch. Not republished to the claude.ai artifact.
 - **1.4.5.0, second build (PR #8, merged 2026-10-15, live on GitHub Pages)**: save codes, released as 1.5.0.0 above. Settings → Save code → **Back up** shows all progress as one `RS1:` line with a Copy button; **Restore** takes a pasted code, shows what it holds and asks before replacing this device's progress. It carries the campaign, survival best runs, free watch setup, training and settings. Damaged, cut-off, other-game and newer-version codes get a plain message and change nothing. New `test/savecode.test.js`; `test/meta.check.js` has a `code` section (META_ONLY=code).

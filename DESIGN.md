@@ -180,13 +180,24 @@ From `grade()` in `campaign.js`.
   keeps going from memory for that visit.
 - `campaign` holds the next shift, unlocked count, best grades, results,
   reserve, bank, medals and the variant picks. `survival` holds the seed and
-  best runs. `free` holds the setup. `settings` holds sound and haptics.
+  best runs. `free` holds the setup. `settings` holds sound and haptics, and
+  (1.6.0.0) `backupAt`, when the last backup was made on this device.
 - **Save codes** (`savecode.js`, 1.5.0.0): Settings → SAVE CODE → BACK UP shows
   one line starting `RS1:` (base64url of LZW-compressed JSON plus a 6-character
   checksum) with a COPY CODE button. RESTORE takes a pasted code, CHECK CODE
   shows what it holds, RESTORE replaces this device's progress all at once.
   Empty, damaged, other-game (`GG1:`) and newer-version codes are refused with
   a plain message and change nothing. The code never leaves the device.
+- **Save safety** (1.6.0.0): every Longlight game shares one browser origin, so a
+  phone low on space can clear all their saves at once. The SAVE CODE box also has
+  SAVE FILE (the same code in `red-skies-backup-YYYY-MM-DD.txt`, through the share
+  sheet where the browser can share files, else a download) and LOAD FILE (reads
+  a file into RESTORE, so the same check and confirm run). A line says whether the
+  browser keeps this site's storage; `RS.storage.keep()` (main.js) asks it to,
+  once per page load, after a shift is saved, training ends, or a backup or
+  restore. Copying the code or saving the file sets `settings.backupAt`. The main
+  menu shows a quiet BACK UP note (BACK UP ▸ / LATER) once per visit when there is
+  progress and no backup, or the last one is 14 or more days old.
 
 ## Portrait only, phone first
 
