@@ -45,6 +45,12 @@ The game is live at https://jxstrr0.github.io/RedSkies/ (GitHub Pages serves the
   sound/haptics settings, and it replaces whatever progress that device had.
   A code with a typo or a missing piece is turned away with a message and changes
   nothing. Everything stays on your devices: the game never sends the code anywhere.
+- **Backup files (1.6):** the same Save code box has **Save file**, which puts the code
+  in a small text file (`red-skies-backup-2026-11-06.txt`; on iPhone pick *Save to
+  Files*), and **Load file**, which reads one back through the same Check code and
+  Restore steps. A line underneath says whether the browser has agreed to keep the
+  game's storage. If you have progress and no backup (or the last one is two weeks
+  old), the main menu shows a small reminder once per visit.
 
 ## Build
 

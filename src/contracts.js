@@ -308,3 +308,14 @@ RS.AIR_VISIBLE_KM = 15;   // aircraft (not missiles) are put in state.visible ou
      summary(data) -> string[]         lines for the confirm box; collect(), encode(obj), decode(text) for tests }
    UI: meta.js SETTINGS → SAVE CODE → BACK UP / RESTORE (screens 'backup', 'restore'). No network: the code only goes
    where the player pastes it.                                                                                       */
+
+/* ---------- Save safety (V1.6.0.0: main.js, meta.js) ----------
+   RS.storage = { persisted() -> Promise<true|false|null>   null = no navigator.storage.persist API (hide the status line)
+                  keep() -> Promise<true|false|null> }      asks navigator.storage.persist() at most once per page load
+                                                            (called after a shift is saved, training ends, a backup or a restore)
+   'settings' save key + { backupAt: ms }   when the last backup was made (code copied or file saved; a restore sets the
+                                            code's own date). savecode.js accepts it as a number.
+   UI: meta.js SETTINGS → SAVE CODE box: SAVE FILE (red-skies-backup-YYYY-MM-DD.txt via navigator.share files, else a
+       download) / LOAD FILE (hidden <input type=file> → RESTORE screen → CHECK CODE → confirm), "Last backup" and
+       "Storage" lines. Main menu: #m-remind note (BACK UP ▸ / LATER) once per page load when there is progress and no
+       backup, or the last one is 14+ days old. No network.                                                            */

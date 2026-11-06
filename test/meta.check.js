@@ -4,7 +4,8 @@
      flow     390×844 campaign flow: menu → map → briefing → shift → pause → debrief → resupply → settings → reload → free watch
      360      360×740 layout pass over every meta screen
      blocked  localStorage blocked: the memory fallback keeps the campaign going
-     code     360×740 save codes: real progress → SETTINGS → BACK UP → wipe storage → RESTORE (bad code, then the real one) → same progress
+     code     360×740 save codes: real progress → SETTINGS → BACK UP → wipe storage → RESTORE (bad code, then the real one) → same progress;
+              V1.6: the menu's backup note, SAVE FILE (download) → wipe → LOAD FILE (broken file, then the real one) → same progress
    META_ONLY=flow (or a comma list, e.g. META_ONLY=360,blocked) runs only those sections; each section uses its own page.
    Under software WebGL (~1-4 fps, the title scene renders behind every menu) flow takes 3-5 min and 360+blocked 2-4 min,
    so where a run is capped at 500 s use META_ONLY=flow, then META_ONLY=360,blocked.
@@ -280,7 +281,14 @@ async function codes(browser) {
     await page.tap('[data-m=map]');
   } else ok(false, 'code: shift 1 passed');
   await page.evaluate(() => { RS.save('survival', { seed: 777, best: [{ score: 12650, waves: 11, kills: 15, seed: 777, at: Date.now() }] }); RS.save('tutorial', { done: true }); });
-  await page.tap('[data-m=menu]'); await page.tap('#m-settings'); await page.tap('#m-sound');
+  await page.tap('[data-m=menu]');
+  ok(await screenIs(page, 'menu') && /No backup yet/.test(await page.textContent('#m-remind').catch(() => '')), 'V1.6: progress and no backup → menu shows the backup note');
+  await layout(page, 'menu backup note'); await shot(page, 'code_remind');
+  await page.tap('#m-remindgo');
+  ok(await screenIs(page, 'settings') && !!await page.$('#m-savefile') && !!await page.$('#m-loadfile'), 'BACK UP ▸ → settings with SAVE FILE / LOAD FILE');
+  await page.tap('[data-m=menu]');
+  ok(!await page.$('#m-remind'), 'the backup note shows once per visit');
+  await page.tap('#m-settings'); await page.tap('#m-sound');
   const before = await saved(), next = await page.evaluate(() => RS.meta.campaign.next);
   ok(next === 1 && Object.keys(before).length === 4, 'progress to back up: ' + Object.keys(before).join(', '));
 
@@ -292,6 +300,23 @@ async function codes(browser) {
   await page.waitForFunction(() => /Copied|selected/.test(document.getElementById('m-codemsg').textContent), null, { timeout: 10000 }).catch(() => {});
   ok(/Copied|selected/.test(await page.textContent('#m-codemsg')), 'COPY CODE: ' + await page.textContent('#m-codemsg'));
   await layout(page, 'code backup'); await shot(page, 'code_backup');
+  if (/Copied/.test(await page.textContent('#m-codemsg'))) ok(await page.evaluate(() => RS.meta.settings.backupAt > Date.now() - 60000), 'copied → settings.backupAt set');
+
+  // V1.6 SAVE FILE: the same code as a text file (headless has no file share sheet, so it is a download)
+  await page.tap('[data-m=settings]');
+  ok(await screenIs(page, 'settings'), 'BACK UP → ◂ SETTINGS');
+  const store = await page.evaluate(() => { const e = document.getElementById('m-store'); return e && !e.hidden ? e.textContent : '(hidden: no storage API here)'; });
+  ok(/^Storage: |hidden/.test(store), 'storage line: ' + store);
+  await page.evaluate(() => { try { delete Navigator.prototype.share; delete Navigator.prototype.canShare; } catch (e) { /* */ } });
+  const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.tap('#m-savefile')]);
+  const fileName = dl.suggestedFilename(), filePath = path.join(SHOTS, 'code_backup_file.txt');
+  await dl.saveAs(filePath);
+  const fileText = fs.readFileSync(filePath, 'utf8');
+  ok(/^red-skies-backup-\d{4}-\d{2}-\d{2}\.txt$/.test(fileName) && /^RS1:[A-Za-z0-9_-]+\n$/.test(fileText), `SAVE FILE: ${fileName}, an RS1: code + newline (${fileText.length} chars)`);
+  ok(/Backup file saved/.test(await page.textContent('#m-codenote')) && /today/.test(await page.textContent('#m-lastbk')), 'note "Backup file saved", last backup: today');
+  await layout(page, 'settings save code box'); await shot(page, 'code_settings_files');
+  const brokenPath = path.join(SHOTS, 'code_backup_broken.txt');
+  fs.writeFileSync(brokenPath, fileText.slice(0, -20) + '\n');
 
   // a new browser: nothing saved
   await page.evaluate(() => localStorage.clear());
@@ -317,12 +342,37 @@ async function codes(browser) {
   ok(!await page.$('#m-restoreyes') && await page.evaluate(() => RS.meta.campaign.next === 0), 'CANCEL changes nothing');
   await page.tap('#m-checkcode'); await page.tap('#m-restoreyes');
   ok(await screenIs(page, 'settings') && /restored/.test(await page.textContent('#m-codenote')), 'RESTORE → settings, "Progress restored"');
-  ok(JSON.stringify(await saved()) === JSON.stringify(before), 'localStorage identical to before the wipe');
+  const noAt = o => { const c = Object.assign({}, o), k = 'redskies.v1.settings'; if (c[k]) { const v = JSON.parse(c[k]); delete v.backupAt; c[k] = JSON.stringify(v); } return c; };
+  const after = await saved();
+  ok(JSON.stringify(noAt(after)) === JSON.stringify(noAt(before)), 'localStorage identical to before the wipe (apart from the last-backup time)');
+  ok(JSON.parse(after['redskies.v1.settings']).backupAt > 0, 'restoring a code counts as having a backup (settings.backupAt)');
   ok(await page.evaluate(() => RS.meta.campaign.next === 1 && RS.meta.survival.best.length === 1 && RS.audio.muted === true && RS.tutorial.done), 'restored in place: campaign, survival board, sound off, training done');
   await shot(page, 'code_restored');
   await page.reload({ waitUntil: 'load' }); await page.tap('#start');
   await page.waitForFunction(() => RS.meta && RS.meta.screen === 'menu', null, { timeout: 60000 });
   ok(await page.evaluate(() => RS.meta.campaign.next === 1 && /Shift 2/.test(document.getElementById('m-campaign').textContent)), 'after a reload: menu says Next: Shift 2');
+  ok(!await page.$('#m-remind'), 'recent backup → no backup note');
+
+  // V1.6 LOAD FILE: wipe again, a broken file gets the bad-code message, the real file restores through the same confirm
+  await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: 'load' }); await page.tap('#start');
+  await page.waitForFunction(() => RS.meta && RS.meta.screen === 'menu', null, { timeout: 60000 });
+  ok(await page.evaluate(() => RS.meta.campaign.next === 0), 'storage wiped again');
+  await page.tap('#m-settings');
+  let [fc] = await Promise.all([page.waitForEvent('filechooser', { timeout: 15000 }), page.tap('#m-loadfile')]);
+  await fc.setFiles(brokenPath);
+  await page.waitForFunction(() => RS.meta.screen === 'restore' && /damaged/.test(document.getElementById('m-rmsg').textContent), null, { timeout: 15000 }).catch(() => {});
+  ok(await screenIs(page, 'restore') && /damaged or incomplete/.test(await page.textContent('#m-rmsg')) && !await page.$('#m-restoreyes'), 'broken file: same friendly error, no restore offered');
+  ok(await page.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('redskies.v1.')).length === 0), 'nothing written by the broken file');
+  await shot(page, 'code_file_error');
+  await page.tap('[data-m=settings]');
+  [fc] = await Promise.all([page.waitForEvent('filechooser', { timeout: 15000 }), page.tap('#m-loadfile')]);
+  await fc.setFiles(filePath);
+  await page.waitForSelector('#m-restoreyes', { timeout: 15000 }).catch(() => {});
+  ok(!!await page.$('#m-restoreyes') && /shift 2 of 6/.test(await page.textContent('#m-rsum')), 'good file: summary + RESTORE / CANCEL');
+  await page.tap('#m-restoreyes');
+  ok(await screenIs(page, 'settings') && /restored/.test(await page.textContent('#m-codenote')), 'file RESTORE → settings, "Progress restored"');
+  ok(JSON.stringify(noAt(await saved())) === JSON.stringify(noAt(after)), 'restored from the file: same progress as before');
   ok(errors.length === 0, 'no console errors (save codes)' + errText(errors));
   await ctx.close();
 }
