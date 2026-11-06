@@ -8,6 +8,11 @@
         'settings' {sound, haptics}, 'free' {seed, diff, dur, ev:{}, time, sky}, 'survival' {seed, best:[{score,waves,kills,seed,at}]}
    Save codes (RS.savecode, savecode.js): SETTINGS → SAVE CODE → BACK UP (code + COPY CODE) / RESTORE (paste → CHECK CODE →
         confirm → every key replaced, then loadAll() re-reads them in place). Screens 'backup' and 'restore'.
+   V1.6 save safety (same SAVE CODE box): SAVE FILE writes the code to red-skies-backup-YYYY-MM-DD.txt (share sheet where the
+        browser can share files, else a download); LOAD FILE reads one into RESTORE and runs the same CHECK CODE → confirm.
+        A status line says whether the browser keeps this site's storage (RS.storage, main.js). settings.backupAt = when the
+        last backup was made (code copied or file saved); the main menu shows a quiet BACK UP note once per session when
+        there is progress and no backup, or the last one is 14+ days old.
    V1.1: weather pickers + briefing line, SURVIVAL (endless) mode, debrief REPLAY mini-scope + MEDALS, tutorial hooks.
    Tutorial hooks (RS.tutorial feature-detected): menu TRAINING (when !done) + SETTINGS TRAINING call RS.tutorial.start();
    SHIFT_END of a def.tutorial shift is ignored (no debrief/save); pause QUIT during it calls RS.tutorial.stop().
@@ -121,6 +126,8 @@
 #meta textarea.code::placeholder { color: #3d5a47; }
 #meta textarea.code:focus-visible { outline: 2px solid #45ff84; outline-offset: 2px; }
 #meta .codemsg { min-height: 1.4em; font-size: 12px; }
+#meta .codenote:empty { margin: 0 !important; }
+#meta .remind { border-color: #6b4a10; background: #120e05; }
 `;
 
   let root, mc, pbtn;
@@ -128,6 +135,7 @@
   let screen = null, mode = null;            // mode: {type:'campaign', idx, frontier} | {type:'free', opts} | {type:'survival', seed}
   let curDef = null, lastEnd = null, tally = null, buy = null, resetArm = false, debTimer = 0;
   let restoreText = '', restorePend = null, codeNote = null;   // save codes: pasted text, checked code waiting for the OK, note after restoring
+  let remindShown = false;                   // V1.6: the main menu's backup note shows at most once per page load
 
   /* ---------- persistence ---------- */
   const content = () => RS.content, CP = () => RS.campaign;
@@ -200,6 +208,7 @@
     const sub = done ? 'Campaign complete · replay any shift' : `Next: ${esc(CP().shifts[camp.next].name)}`;
     const train = RS.tutorial && !RS.tutorial.done, sb = surv.best[0];
     show('menu', `<h1>RED SKIES</h1><div class="sub">BATTERY KESSEL · REPUBLIC OF VARENNA</div><div style="height:18px"></div>` +
+      remindBox() +
       (train ? btn('train', 'TRAINING ▸<small>Recommended · a guided first watch</small>', 'amb col', 'id="m-train"') : '') +
       btn('map', `CAMPAIGN<small>${sub}</small>`, (train ? '' : 'pri ') + 'col', 'id="m-campaign"') +
       btn('surv', `SURVIVAL<small>Hold as long as you can${sb ? ' · best wave ' + sb.waves : ''}</small>`, 'col', 'id="m-surv"') +
@@ -383,6 +392,7 @@
       }
       saveCamp();
     }
+    keepStorage();                            // V1.6: there is progress worth keeping now
     clearTimeout(debTimer);
     debTimer = setTimeout(debrief, 900);
   }
@@ -700,9 +710,108 @@
       (resetArm ? `<p class="red" style="margin-bottom:8px">Erase all campaign progress? This cannot be undone.</p><div class="row2">${btn('resetyes', 'ERASE', 'red', 'id="m-resetyes"')}${btn('resetno', 'CANCEL', 'dim')}</div>`
         : btn('reset', 'RESET PROGRESS', 'amb', 'id="m-reset"')) + `</div>` +
       (RS.savecode ? `<div class="box" id="m-codebox"><div class="sec">SAVE CODE</div><p class="muted" style="margin-bottom:8px">Move your progress to another phone or browser.</p>` +
-        (codeNote ? `<p class="${codeNote.cls}" id="m-codenote" role="status" style="margin-bottom:8px">${esc(codeNote.text)}</p>` : '') +
-        `<div class="row2">${btn('backup', 'BACK UP', '', 'id="m-backup"')}${btn('restore', 'RESTORE', '', 'id="m-restore"')}</div></div>` : '') +
+        `<p class="codenote ${codeNote ? codeNote.cls : ''}" id="m-codenote" role="status" aria-live="polite" style="margin-bottom:8px">${codeNote ? esc(codeNote.text) : ''}</p>` +
+        `<div class="row2">${btn('backup', 'BACK UP', '', 'id="m-backup"')}${btn('restore', 'RESTORE', '', 'id="m-restore"')}</div>` +
+        `<div class="row2" style="margin-top:8px">${btn('savefile', 'SAVE FILE', 'dim', 'id="m-savefile"')}${btn('loadfile', 'LOAD FILE', 'dim', 'id="m-loadfile"')}</div>` +
+        `<input type="file" id="m-file" accept=".txt,text/plain" hidden>` +
+        `<p class="muted" id="m-lastbk" style="margin-top:8px;font-size:12px">${esc(lastBackupText())}</p>` +
+        `<p class="muted" id="m-store" style="margin-top:4px;font-size:12px" hidden></p></div>` : '') +
       btn('menu', '◂ MENU', 'dim'));
+    storeLine();
+  }
+
+  /* ---------- V1.6 save safety: backup files, the last-backup time, the storage line and the menu reminder ---------- */
+  const DAY = 86400000, REMIND_DAYS = 14, FILE_MAX = 512 * 1024;
+  const keepStorage = () => (RS.storage ? RS.storage.keep() : Promise.resolve(null));
+  const hasProgress = () => !!camp && (camp.next > 0 || camp.results.length > 0 || surv.best.length > 0);
+  const dayStr = t => { try { return new Date(t).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }); } catch (e) { return ''; } };
+  function lastBackupText() {
+    const at = +cfg.backupAt || 0;
+    if (!at) return 'Last backup: none yet.';
+    const days = Math.floor((Date.now() - at) / DAY);
+    return 'Last backup: ' + (days < 1 ? 'today' : days === 1 ? 'yesterday' : dayStr(at)) + '.';
+  }
+  /** A backup was made (code copied or file saved): remember when, and ask the browser to keep storage. */
+  function markBackup() {
+    cfg.backupAt = Date.now(); save('settings', cfg);
+    const el = document.getElementById('m-lastbk'); if (el) el.textContent = lastBackupText();
+    keepStorage().then(storeLine);
+  }
+  /** Settings note, updated in place so the screen does not jump back to the top. */
+  function setNote(text, cls) {
+    codeNote = { cls, text };
+    const el = document.getElementById('m-codenote');
+    if (el) { el.textContent = text; el.className = 'codenote ' + cls; }
+  }
+  /** "Storage: …" line under the save code buttons. Hidden when the browser has no storage-persistence API. */
+  function storeLine() {
+    if (!RS.storage) return;
+    RS.storage.persisted().then(p => {
+      const el = document.getElementById('m-store');
+      if (!el) return;
+      if (p === null) { el.hidden = true; return; }
+      el.textContent = p ? 'Storage: protected on this device.' : 'Storage: your browser may clear saves if the phone runs low. Keep a backup file.';
+      el.className = p ? 'ok' : 'muted';
+      el.hidden = false;
+    }, () => {});
+  }
+  function localDate() {
+    const d = new Date(), p = n => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  }
+  /** SAVE FILE: the same RS1: code as BACK UP, as a small text file. Share sheet first (iPhone: Save to Files, also in a
+      Home Screen app), else a normal download. Cancelling the share sheet saves nothing and says nothing. */
+  function saveFile() {
+    let code = '';
+    try { code = RS.savecode.make(); } catch (e) { console.warn('[meta] save file', e); }
+    if (!code) { setNote("Couldn't make a backup file right now.", 'red'); return; }
+    const name = 'red-skies-backup-' + localDate() + '.txt', text = code + '\n';
+    const saved = () => { markBackup(); setNote('Backup file saved: ' + name + '. Keep it somewhere safe, like Files or a cloud drive.', 'ok'); };
+    const download = () => {
+      try {
+        const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' })), a = document.createElement('a');
+        a.href = url; a.download = name; a.rel = 'noopener'; a.style.display = 'none';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e) { /* */ } }, 4000);
+        saved();
+      } catch (e) { setNote("Couldn't save a file here. Use BACK UP and copy the code instead.", 'amber'); }
+    };
+    let file = null, share = false;
+    try { file = new File([text], name, { type: 'text/plain' }); } catch (e) { file = null; }
+    try { share = !!(file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })); } catch (e) { share = false; }
+    if (!share) return download();
+    try {
+      navigator.share({ files: [file], title: name }).then(saved, err => { if (!(err && err.name === 'AbortError')) download(); });
+    } catch (e) { download(); }
+  }
+  /** LOAD FILE: read a backup file, then RESTORE runs the usual CHECK CODE (whole-code check, then the confirm box). */
+  function loadFile() { const inp = document.getElementById('m-file'); if (inp) { inp.value = ''; inp.click(); } }
+  function onFile(inp) {
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    const done = text => { const t = String(text || '').trim(); if (!t) return bad(); inp.value = ''; restoreText = t; restoreScr(); checkCode(); };
+    const bad = () => { inp.value = ''; restoreText = ''; restoreScr(); const m = document.getElementById('m-rmsg'); if (m) m.textContent = RS.savecode.MSG.damaged; };
+    if (f.size > FILE_MAX) return bad();                    // a backup file is a few kB; anything big is not one
+    try {
+      if (f.text) { f.text().then(done, bad); return; }
+      const r = new FileReader(); r.onload = () => done(r.result); r.onerror = bad; r.readAsText(f);
+    } catch (e) { bad(); }
+  }
+  /** Main menu note: progress, and no backup yet (or the last is 14+ days old). Once per page load; LATER hides it. */
+  function remindBox() {
+    if (remindShown || !RS.savecode || !hasProgress()) return '';
+    const at = +cfg.backupAt || 0, days = at ? Math.floor((Date.now() - at) / DAY) : -1;
+    if (at && days < REMIND_DAYS) return '';
+    remindShown = true;
+    const text = at ? `Your last backup was ${days} days ago. Save a fresh one so a full phone can't wipe your progress.`
+      : "No backup yet. If your phone runs low on space, the browser can clear your progress. Save a backup to keep it safe.";
+    return `<div class="box remind" id="m-remind" role="status"><div class="sec amber">BACK UP YOUR PROGRESS</div><p style="margin-bottom:8px">${esc(text)}</p>` +
+      `<div class="row2">${btn('remindgo', 'BACK UP ▸', 'amb', 'id="m-remindgo"')}${btn('remindno', 'LATER', 'dim', 'id="m-remindno"')}</div></div>`;
+  }
+  function remindGo() {
+    settings();
+    const box = document.getElementById('m-codebox');
+    try { if (box) box.scrollIntoView({ block: 'center' }); } catch (e) { /* old browsers */ }
   }
 
   /* ---------- save codes (savecode.js): BACK UP shows the code, RESTORE reads one back ---------- */
@@ -721,7 +830,7 @@
     const ta = document.getElementById('m-code'), st = document.getElementById('m-codemsg');
     if (!ta || !ta.value) return;
     const say = (text, cls) => { if (st) { st.textContent = text; st.className = 'codemsg ' + cls; } };
-    const copied = () => say('Copied. Paste it somewhere safe, like your notes app.', 'ok');
+    const copied = () => { say('Copied. Paste it somewhere safe, like your notes app.', 'ok'); markBackup(); };
     const fallback = () => {                 // older browsers, or the clipboard is not allowed: select it and try the old copy command
       let ok = false;
       try { ta.focus(); ta.select(); ta.setSelectionRange(0, ta.value.length); ok = document.execCommand('copy'); } catch (e) { ok = false; }
@@ -763,11 +872,15 @@
     const data = restorePend; restorePend = null;
     if (!data) return restoreScr();
     let r;
+    const prevAt = +cfg.backupAt || 0;        // V1.6: this device's own last-backup time (the code carries the old device's)
     try { r = RS.savecode.apply(data); } catch (e) {
       restoreScr(); const msg = document.getElementById('m-rmsg'); if (msg) msg.textContent = (e && e.message) || "That code didn't work.";
       return;
     }
     loadAll(); applySettings();               // re-read every key, so the menus show the restored progress straight away
+    const at = Math.min(Date.now(), Math.max(prevAt, +data.at || 0));   // the player holds a backup at least this new
+    if (at) { cfg.backupAt = at; save('settings', cfg); }
+    keepStorage();
     buy = null; lastEnd = null; mode = null; resetArm = false; restoreText = '';
     codeNote = r.stored ? { cls: 'ok', text: 'Progress restored from your save code.' }
       : { cls: 'amber', text: 'Progress restored for this visit only. This browser is blocking storage, so it will be gone when you close the page.' };
@@ -856,6 +969,10 @@
       case 'copycode': return copyCode();
       case 'restore': codeNote = null; return restoreScr();
       case 'checkcode': return checkCode();
+      case 'savefile': return saveFile();
+      case 'loadfile': return loadFile();
+      case 'remindgo': return remindGo();
+      case 'remindno': { const b = document.getElementById('m-remind'); if (b) b.remove(); return; }
       case 'restoreno': return cancelRestore();
       case 'restoreyes': return doRestore();
       case 'resume': return resume();
@@ -864,6 +981,7 @@
     }
   }
   function onInput(e) {
+    if (e.target.id === 'm-file') { if (e.type === 'change') onFile(e.target); return; }
     if (e.target.id === 'm-diff') { readFree(); const l = document.getElementById('m-dlabel'); if (l) l.textContent = diffLabel(freeOpts.diff) + ' ' + freeOpts.diff.toFixed(2); save('free', freeOpts); }
     else if (e.target.id === 'm-seed') { readFree(); save('free', freeOpts); }
     else if (e.target.id === 'm-sseed') { readSurv(); save('survival', surv); }

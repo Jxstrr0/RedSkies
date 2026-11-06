@@ -189,8 +189,8 @@
       opt(c.bank, v => num(v, 0, 1e7)) &&
       opt(c.medals, o => mapOf(o, a => listOf(a, 20, m => str(m, 24)))) &&
       opt(c.vpick, o => mapOf(o, v => str(v, 8))) && opt(c.vlast, o => mapOf(o, v => str(v, 8))),
-    // 'settings' {sound, haptics, voice}
-    settings: s => isObj(s) && ['sound', 'haptics', 'voice'].every(k => opt(s[k], bool)),
+    // 'settings' {sound, haptics, voice, backupAt}   backupAt (V1.6) = ms of the last backup (code copied or file saved)
+    settings: s => isObj(s) && ['sound', 'haptics', 'voice'].every(k => opt(s[k], bool)) && opt(s.backupAt, v => num(v, 0, 1e14)),
     // 'free' {seed, diff, dur, ev:{}, time, sky}
     free: f => isObj(f) && opt(f.seed, v => num(v, 0, 1e9)) && opt(f.diff, v => num(v, 0, 1)) && opt(f.dur, v => num(v, 0, 1e5)) &&
       opt(f.ev, o => mapOf(o, bool)) && opt(f.time, v => str(v, 16)) && opt(f.sky, v => str(v, 16)),
