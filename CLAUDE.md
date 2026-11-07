@@ -160,3 +160,12 @@ screen, and any link back to the studio site.
   "© year Kelbo / Longlight Interactive" (the studio isn't a registered
   business yet). Never Kelbo's real name or initials.
 - **Studio site:** https://jxstrr0.github.io/Kelbo.Website/
+
+## Studio catalogue
+
+`LONGLIGHT-STUDIO.md` (repo root) covers every Longlight game: looks, names
+already taken, storage and cache prefixes on the shared origin, a reuse map and
+improvement ideas. Read it before pitching new ideas, names or looks, and
+before building a system another Longlight game may already have. This file
+wins where the two disagree. Don't edit the copy here: the master is
+`.github/LONGLIGHT-STUDIO.md` in Jxstrr0/Kelbo.Website; it gets recopied.
