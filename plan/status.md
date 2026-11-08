@@ -4,7 +4,7 @@ In a new session read `CLAUDE.md` first, then this file (history, decisions and 
 
 - **Version:** see `VERSION` (Major.Minor.Patch.Build; Major = overhaul, Minor = feature batch, Patch = tweak/fix, Build = republish). Bump before every publish.
 - **Repo:** https://github.com/Jxstrr0/RedSkies (`main` is the default branch)
-- **Live site:** https://jxstrr0.github.io/RedSkies/ (GitHub Pages serves the repo root of `main`, so every merge to `main` goes live; no deploy workflow). The Longlight Interactive website links here. From V1.5.0.0 (2026-10-24) the live page's version matches its features again.
+- **Live site:** https://redskies.longlight.games/ (since November 2026; the old https://jxstrr0.github.io/RedSkies/ forwards here. GitHub Pages serves the repo root of `main`, so every merge to `main` goes live; no deploy workflow). The Longlight Interactive website links here. From V1.5.0.0 (2026-10-24) the live page's version matches its features again.
 - **Live artifact:** https://claude.ai/artifact/2vVrrJw4wg99sdZw6rptYP. Publish `dist/weapons_hold.artifact.html` to this same URL, labelled with the version. (The GitHub Pages site above is the main live copy now; the artifact is the older home.)
   - Last publish: V1.4.5.0 (artifact version 39), 2026-10-14. The source files are published alongside the page.
 - **Studio:** Longlight Interactive. The license is all rights reserved (`LICENSE`); three.js is MIT (`vendor/three.LICENSE`).
@@ -44,6 +44,7 @@ In a new session read `CLAUDE.md` first, then this file (history, decisions and 
 
 ## Changelog
 
+- **1.6.1.1** (2026-11-08): republish for the new address, https://redskies.longlight.games/ (every Longlight game now has its own subdomain, so its own storage; saves from before the move stay on jxstrr0.github.io). Docs, the save-safety comment in `src/main.js` and the `LONGLIGHT-STUDIO.md` copy updated; no gameplay change.
 - **1.6.1.0** (2026-11-06): home-screen icon. A green radar scope with its sweep and a red hostile contact (`icons/icon.svg`), rendered to `icons/apple-touch-icon.png` (180), `icon-192.png`, `icon-512.png` and `icon-512-maskable.png` by `tools/make-icons.js` (run by hand). New `manifest.webmanifest` (standalone, portrait, `#050707`); the shell links the manifest, favicon (SVG + PNG) and apple-touch-icon, and names the home-screen app "Red Skies".
 - **1.6.0.0** (2026-11-06): save safety. Settings → Save code now also has **Save file** (the same `RS1:` code as `red-skies-backup-YYYY-MM-DD.txt`: the share sheet where the browser can share files, so iPhone offers Save to Files, else a download) and **Load file** (reads a file into Restore, so the same check and confirm run; a broken file gets the usual "damaged or incomplete" message). A line says whether the browser keeps the game's storage, and the game asks it to (`navigator.storage.persist`) once per visit after progress is saved, training ends, or a backup or restore. Copying the code or saving the file records `settings.backupAt`; with progress and no backup, or one 14+ days old, the main menu shows a small reminder once per visit. Node tests cover `backupAt` and file text; `test/meta.check.js` `code` section covers the reminder, Save file, Load file (broken and good). Not republished to the claude.ai artifact.
 
