@@ -14,7 +14,7 @@ three.js included, so it also plays offline. It is laid out for a phone held in
 portrait. Two title fonts load from Google Fonts when a connection is available;
 without one, the title uses fallback fonts.
 
-The game is live at https://jxstrr0.github.io/RedSkies/ (GitHub Pages serves the repo root of `main`, so every merge to `main` goes live).
+The game is live at https://redskies.longlight.games/ (GitHub Pages serves the repo root of `main`, so every merge to `main` goes live).
 
 ### How a shift plays
 

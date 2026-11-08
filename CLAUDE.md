@@ -38,7 +38,7 @@ npm run balance           # tools/balance.js: a bot plays the campaign shifts
   artifact flavour with no doctype/html/head/body).
 - The build fails if a file in `src/` is missing from `ORDER`, or the other way
   round. A new module goes into `ORDER` in load order.
-- `VERSION` holds `Major.Minor.Patch.Build` (now 1.6.1.0). The build stamps it
+- `VERSION` holds `Major.Minor.Patch.Build` (now 1.6.1.1). The build stamps it
   into the `<title>` and `window.RS.VERSION`. Major = overhaul, Minor = feature
   batch, Patch = tweak or fix, Build = republish. Bump it before a release.
 - After any `src/` change: run `node build.js` and commit `index.html` with it.
@@ -49,7 +49,7 @@ npm run balance           # tools/balance.js: a bot plays the campaign shifts
   **browser** ticked.
 - Deploy: GitHub Pages serves the repo root of `main`, so merging to `main`
   publishes `index.html`. There is no deploy workflow. Live:
-  https://jxstrr0.github.io/RedSkies/ Repo: https://github.com/Jxstrr0/RedSkies
+  https://redskies.longlight.games/ Repo: https://github.com/Jxstrr0/RedSkies
 
 ## Code conventions (what the code actually does)
 
@@ -125,14 +125,20 @@ npm run balance           # tools/balance.js: a bot plays the campaign shifts
 
 ## Current status
 
-- V1.6.1.0 is on `main` and live. Built and playable: the Training Watch, a
+- V1.6.1.1 is on `main` and live. Built and playable: the Training Watch, a
   six-shift campaign with three variants per shift, Free watch, Survival,
   medals, the resupply shop, save codes with backup files, the 3-D operator
   cabin with the EO camera, procedural audio and haptics.
 - Save codes (PR #8, 2026-10-15) are the 1.5 feature; 1.6.0.0 (2026-11-06)
   adds save safety (backup files, storage persistence, a backup reminder); 1.6.1.0
   adds the home-screen icon and web app manifest (`icons/`, `manifest.webmanifest`).
+  1.6.1.1 is a republish for the new address, redskies.longlight.games.
   Next feature batch is 1.7.0.0, next fix 1.6.2.0.
+- Own address: since November 2026 every Longlight game has its own subdomain,
+  so Red Skies has its own localStorage, Cache Storage and quota. Saves from
+  before the move stay on the old shared origin, `jxstrr0.github.io` (Kelbo
+  accepted that); the old address forwards here. Keep the `redskies.v1.`
+  prefix and never touch another game's keys or caches.
 - Known gaps: the back-burner list in `plan/status.md` (contrast and touch
   target sizes, keyboard access, a few perf ideas that need an on-device test,
   small sim and content items). The browser checks do not run in CI by default.
@@ -147,7 +153,7 @@ screen, and any link back to the studio site.
 
 - **Logo:** the horizon lockup, a half-set clay sun on a long horizon line
   with LONGLIGHT above INTERACTIVE. Use the official files from the studio
-  site's press kit (https://jxstrr0.github.io/Kelbo.Website/press.html; the
+  site's press kit (https://longlight.games/press.html; the
   files are `assets/press/longlight-logo-dark` and `longlight-logo-light`,
   SVG plus 2x PNG, in `Jxstrr0/Kelbo.Website`). Copy them into this repo;
   never hotlink, redraw or recolour them, or swap the letters for live text.
@@ -159,12 +165,12 @@ screen, and any link back to the studio site.
 - **Name:** always "Longlight Interactive" in full. Credit line:
   "© year Kelbo / Longlight Interactive" (the studio isn't a registered
   business yet). Never Kelbo's real name or initials.
-- **Studio site:** https://jxstrr0.github.io/Kelbo.Website/
+- **Studio site:** https://longlight.games/
 
 ## Studio catalogue
 
 `LONGLIGHT-STUDIO.md` (repo root) covers every Longlight game: looks, names
-already taken, storage and cache prefixes on the shared origin, a reuse map and
+already taken, storage and cache prefixes (once one shared origin), a reuse map and
 improvement ideas. Read it before pitching new ideas, names or looks, and
 before building a system another Longlight game may already have. This file
 wins where the two disagree. Don't edit the copy here: the master is
