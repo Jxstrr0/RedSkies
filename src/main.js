@@ -27,8 +27,9 @@
     try { localStorage.removeItem(SAVE_KEY + key); return true; } catch (e) { return false; }
   };
 
-  /* V1.6 save safety: every Longlight game shares one browser origin (jxstrr0.github.io), so when a phone runs low on
-     space the browser can clear all of their storage at once. persist() asks it to keep ours. Asked at most once per page
+  /* V1.6 save safety: Red Skies has its own address (redskies.longlight.games), so its own browser storage; saves from
+     before the move stay on jxstrr0.github.io. When a phone runs low on space the browser can still clear a site's
+     storage. persist() asks it to keep ours. Asked at most once per page
      load, and only once there is progress worth keeping (meta.js calls keep() after a shift is saved, a backup or a restore;
      tutorial.js after training). Firefox shows a prompt for it; Chrome and Safari decide quietly. Never throws.
        RS.storage.persisted() -> Promise<true|false|null>   null = this browser has no such API (hide the status line)
