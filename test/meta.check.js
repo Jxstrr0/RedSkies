@@ -15,7 +15,7 @@ const fs = require('fs'), path = require('path');
 const { launch, newPage, URL, SHOTS } = require('./_browser');
 fs.mkdirSync(SHOTS, { recursive: true });
 
-const SECTIONS = ['flow', '360', 'blocked', 'code'];
+const SECTIONS = ['flow', '360', 'blocked', 'code', 'help'];
 const ONLY = (process.env.META_ONLY || '').split(',').map(s => s.trim()).filter(Boolean);
 for (const s of ONLY) if (!SECTIONS.includes(s)) { console.error(`META_ONLY: unknown section "${s}" (have ${SECTIONS.join(', ')})`); process.exit(1); }
 const want = s => !ONLY.length || ONLY.includes(s);
@@ -377,6 +377,40 @@ async function codes(browser) {
   await ctx.close();
 }
 
+/** V1.7: HOW TO PLAY field card (menu, briefing, pause), the HINTS setting and the "what next" line under the selected track. */
+async function helpCard(browser) {
+  console.log('help: field card, hints');
+  for (const vp of [{ width: 390, height: 844 }, { width: 360, height: 740 }]) {
+    const { ctx, page, errors } = await open(browser, vp);
+    await boot(page);
+    await page.tap('#m-help');
+    ok(await screenIs(page, 'help'), `${vp.width}: menu HOW TO PLAY opens the field card`);
+    ok(await page.evaluate(() => document.querySelectorAll('#meta ol.drill li').length === 5 && document.querySelectorAll('#meta table.gl tr').length >= 10), `${vp.width}: five drill steps and the console words`);
+    await layout(page, `help ${vp.width}`);
+    await shot(page, 'help_' + vp.width);
+    await page.tap('#m-helpback');
+    ok(await screenIs(page, 'menu'), `${vp.width}: BACK returns to the menu`);
+    await page.tap('#m-campaign'); await screenIs(page, 'map');
+    await page.tap('.mrow'); await screenIs(page, 'briefing');
+    ok(await page.evaluate(() => !!document.getElementById('m-newbie')), `${vp.width}: the first briefing offers TRAINING while training is not done`);
+    await page.tap('#m-begin');
+    await page.waitForFunction(() => RS.sim.state.shift.running && RS.sim.state.tracks.length > 0, null, { timeout: 120000 });
+    await page.evaluate(() => RS.sim.cmd.selectTrack(RS.sim.state.tracks[0].id));
+    await page.waitForFunction(() => !!document.getElementById('nx'), null, { timeout: 30000 }).catch(() => {});
+    ok(await page.evaluate(() => /IFF/.test((document.getElementById('nx') || {}).textContent || '')), `${vp.width}: the "what next" line asks for IFF on a fresh track`);
+    await page.tap('#m-pause'); await screenIs(page, 'pause');
+    await page.tap('#m-phelp'); await screenIs(page, 'help');
+    await page.tap('#m-helpback');
+    ok(await screenIs(page, 'pause') && await page.evaluate(() => RS.main.paused), `${vp.width}: help from pause returns to the pause screen, still paused`);
+    await page.tap('#m-quit');
+    await page.evaluate(() => RS.meta.show('settings')); await screenIs(page, 'settings');
+    await page.tap('#m-hints');
+    ok(await page.evaluate(() => RS.settings.hints === false && RS.load('settings', {}).hints === false), `${vp.width}: HINTS off is applied and saved`);
+    ok(errors.length === 0, `${vp.width}: no console errors` + errText(errors));
+    await ctx.close();
+  }
+}
+
 (async () => {
   const browser = await launch();
   const t0 = Date.now();
@@ -384,6 +418,7 @@ async function codes(browser) {
   if (want('360')) await narrow(browser);
   if (want('blocked')) await blocked(browser);
   if (want('code')) await codes(browser);
+  if (want('help')) await helpCard(browser);
   await browser.close();
   console.log(`  INFO ${((Date.now() - t0) / 1000).toFixed(0)} s` + (ONLY.length ? ' (META_ONLY=' + ONLY.join(',') + ')' : ''));
   console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');

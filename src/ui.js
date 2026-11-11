@@ -723,6 +723,25 @@
     return h;
   }
 
+  /** V1.7 "what next" line for the selected track: the drill (IFF, decide, assign, fire) in plain words. Settings → HINTS turns it off. */
+  function nextHint(tr, s) {
+    const roe = s.shift.roe;
+    if (tr.cls === 'FRIEND') return ['c', 'Marked FRIEND. Nobody can fire at it.'];
+    if ((s.missiles || []).some(m => m.targetId === tr.id)) return ['', 'Missile on its way. Watch the scope or the camera.'];
+    if (tr.iff === 'PENDING') return ['', 'Waiting for the IFF reply…'];
+    if (tr.cls !== 'HOSTILE') {
+      if (tr.iff === 'NONE') return s.radar.on ? ['a', 'Next: tap IFF to ask "friend or foe?"'] : ['a', 'Radar is off. Switch it on to use IFF.'];
+      if (tr.iff === 'FRIEND') return ['c', 'IFF says friend. Tap FRIEND to mark it.'];
+      return ['a', (tr.iff === 'INVALID' ? 'Bad IFF reply.' : 'No IFF reply.') + ' Check COMMS and the briefing, then mark it FRIEND or HOSTILE.'];
+    }
+    if (tr.iff === 'FRIEND') return ['c', 'Careful: IFF answered FRIEND. Be sure before you fire.'];
+    if (roe === 'HOLD') return ['r', 'Weapons HOLD: no firing until HQ changes the order.'];
+    if (!tr.assigned) return ['r', 'Marked HOSTILE. Next: tap ASSIGN to pick a launcher.'];
+    const q = engage(tr.id, tr.assigned);
+    if (q && !q.ok) return ['a', 'Launcher cannot fire yet: ' + why(q.reason) + '.'];
+    return ['r', 'Launcher ready. Press and hold FIRE.'];
+  }
+
   function trackBody(s) {
     const tr = selTrack();
     let h = '<div class="pad">';
@@ -731,6 +750,7 @@
       h += `<div class="thdr"><span class="big">${tr.id}</span><span class="pill ${clsPill(tr.cls)}">${tr.cls}</span>` +
         `<span class="chip ${il[1] === 'pend' ? 'amber' : il[1]}">IFF ${tr.iff === 'PENDING' ? '<i class="spin"></i>' : tr.iff.replace('_', ' ')}</span>` +
         `<span class="muted">Q${Math.round(tr.quality * 100)}</span></div>`;
+      if (RS.settings.hints !== false) { const nh = nextHint(tr, s); h += `<div class="nx ${nh[0]}" id="nx">${esc(nh[1])}</div>`; }
       h += '<div class="kv">' + f('ALT m', tr.alt) + f('SPD m/s', tr.spd) + f('HDG', pad(tr.hdg, 3) + '°') + f('CLOSURE', (tr.closure > 0 ? '+' : '') + tr.closure) +
         f('RANGE km', tr.rangeKm.toFixed(1)) + f('BRG', pad(tr.bearingDeg, 3) + '°') + f('IFF', tr.iff === 'NO_RESPONSE' ? 'NO RSP' : tr.iff) + f('PRIORITY', tr.priority) + '</div>';
       const ib = blocked('iff') ? ' dis' : '';
