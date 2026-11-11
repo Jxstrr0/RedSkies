@@ -35,6 +35,7 @@ In a new session read `CLAUDE.md` first, then this file (history, decisions and 
 - License: all rights reserved.
 - V1.4.5.0: the studio is Longlight Interactive (was Prairie Blue Studio).
 - V1.6.0.0 save safety (Kelbo asked for it in every Longlight game, 2026-11-06): ask the browser to keep storage, backup files next to the save code, and a quiet reminder. Small calls made here: the reminder sits on the main menu (BACK UP ▸ opens Settings at the save code box, LATER hides it for this visit); "progress" means a finished campaign shift or a survival run; the last-backup time lives in the existing `settings` key as `backupAt` (no new key), and restoring a code sets it to the code's own date, so a freshly restored phone is not nagged.
+- V1.8.0.0 Blender pass, small calls made here: Blender is used where the game still had box placeholders (drone, helicopter, transport), not to redo the detailed procedural jets, launchers and radars; the models ship as generated JavaScript data with vertex colours, so the game stays one offline file with no loader; helicopters of both sides share one model, as before.
 - V1.7.0.0 UI pass, small calls made here: the hint line is on by default with a Settings switch; it tells the player the next key in the drill but never whether a contact is friend or foe; the help page is one scrolling page, not a second tutorial; the launcher keys keep their short words (ROE TIGHT, OUT RNG) because longer ones do not fit a 360 px phone, and the field card explains them instead.
 - V1.5.0.0: save codes get their own number. They are a new feature, so it is a Minor bump (Kelbo, 2026-10-24: pick a sensible number and go).
 - The title/cover shot keeps full-quality grass; the performance savings apply in play only.
@@ -44,6 +45,13 @@ In a new session read `CLAUDE.md` first, then this file (history, decisions and 
   - After launch the coach card follows the camera: it explains OUT OF RANGE, then says when the camera has picked up the jet.
 
 ## Changelog
+
+- **1.8.0.0** (2026-11-11): first Blender model pass (Kelbo asked for a Blender visual pass).
+  - The last three box placeholders are replaced by Blender-built aircraft: the **drone** (pusher propeller, V tail, sensor ball; 1,112 triangles), the **helicopter** (tandem cockpit, stub wings with rocket pods, chin gun, five-blade rotor; 3,296) and the **transport** (four-engine high-wing airlifter with a T-tail; 2,882). Each has a decimated low-detail copy (about 40%). They show on the tracker camera and in the cabin windows.
+  - `tools/blender/build_models.py` (headless, `pip install bpy`, Blender 5.3): lofted fuselages and aerofoils in bmesh, camouflage painted into vertex colours, **ambient occlusion baked with Cycles** into the same colours, Decimate for the low copy. It writes `src/models_blender_data.js` (246 KB of base64); `src/models_blender.js` turns that into three.js meshes and hooks into `Models.create`. Same output on every run.
+  - No textures, no model files, no loader library: still one offline page. The page grows from about 1.56 MB to 1.81 MB.
+  - The far stand-in (2.5–4.5 km, a few pixels) is still the primitive placeholder. The rotor and the propeller spin as before (a child named `rotor`).
+  - `test/scene.check.js` checks the three Blender models (source, rotor, sizes, triangle counts).
 
 - **1.7.0.0** (2026-11-11): easier start (Kelbo asked for a UI pass that makes the game simpler to understand from the start).
   - **HOW TO PLAY** field card (`meta.js` `help()`): the drill in five steps, the three scope symbols, and a plain-words list of the console's short words (ROE, TX, ARM, Pk, OUT RNG, RLD, 1×/2×, TRK, RDR, JAM, Q, EO). It opens from the main menu, Settings and the pause screen (BACK returns to the pause screen, still paused). Weapon ranges are read from `content.js`.
@@ -122,6 +130,7 @@ In a new session read `CLAUDE.md` first, then this file (history, decisions and 
   - Bake the static meshes of ready TELs.
   - Shorten the 26 s weapon-audio delay line and add a voice budget.
 - **Sim:** LEAKER and ASSET_HIT carry the entity id when the attacker was never tracked (the log shows "E13").
+- **Models (Blender):** a separate utility helicopter for friendly medevac flights (they share the gunship model); Blender-built far stand-ins; a baked-light pass on the cabin interior.
 - **Content:** the Dustoff 3 (C2) and Dustoff 4 (C2B) medevac helicopters land after their shift ends.
 - **Code comments:** keep or reword the "Kelbo" nickname in `src/models_launchers.js` and `src/scene.js`.
 - **Salvo spare-round MISS (normal play):** after the first round of a salvo kills, the second round's self-destruct is logged and flashed as a MISS and counts in stats.misses. Training hides it (1.4.4). Changing it for real watches would alter the debrief numbers, so it needs a decision.

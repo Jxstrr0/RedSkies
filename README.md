@@ -85,6 +85,7 @@ This writes three files:
 | `src/campaign.js` | `RS.campaign`: the six Kessel campaign shifts, story, budget and grading |
 | `src/sim.js` | `RS.sim`: the air picture, including radar, tracks, IFF, weapons, ARMs, jamming, ROE and comms (no DOM; runs in node) |
 | `src/models*.js`, `src/jet_friend.js` | `RS.models`: procedural three.js models of launchers, ground kit, jets and weapons (all fictional designs) |
+| `src/models_blender_data.js`, `src/models_blender.js`, `tools/blender/build_models.py` | The Blender-built drone, helicopter and transport: generated data, its loader, and the headless Blender script that makes it (`pip install bpy`) |
 | `src/scene.js` | `RS.scene`: the 3-D world outside, including terrain, sky/weather, aircraft, missiles and effects |
 | `src/cabin.js` | `RS.cabin`: the operator cabin (V1.4); projects the DOM radar console and the EO overlay onto its monitors |
 | `src/audio.js` | `RS.audio`: procedural WebAudio for radar, UI, IFF, alarms, the gun and flybys, plus haptics |
