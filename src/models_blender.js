@@ -31,6 +31,7 @@
   function geometry(kind, lod, name, part, ext) {
     const key = kind + '|' + lod + '|' + name;
     if (geo[key]) return geo[key];
+    if (part.f === 2) return (geo[key] = packed(part));
     const pu = bytes(part.p), p16 = new Int16Array(pu.buffer, 0, part.n * 3), q8 = new Int8Array(bytes(part.q).buffer, 0, part.n * 3), c8 = bytes(part.c);
     const pos = new Float32Array(part.n * 3), nor = new Float32Array(part.n * 3), col = new Float32Array(part.n * 3), k = ext / 32767;
     // the game renders without an output colour conversion, so the stored colours are used as they are (like the hex colours of the other models)
@@ -42,6 +43,36 @@
     g.setIndex(new THREE.BufferAttribute(new Uint16Array(bytes(part.i).buffer, 0, part.t * 3), 1));
     g.computeBoundingSphere();
     return (geo[key] = g);
+  }
+  // V1.9 jet format (f: 2, see packed() in tools/blender/build_models.py): planar arrays, 16-bit values as a plane of low
+  // bytes then a plane of high bytes, positions as per-axis differences, indices as high-water-mark codes, no normals
+  function packed(part) {
+    const n = part.n, m = part.t * 3, k = part.e / 32767;
+    const pb = bytes(part.p), ib = bytes(part.i), cb = bytes(part.c), kb = bytes(part.k);
+    const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), rsk = new Uint8Array(n * 2), idx = new Uint16Array(m);
+    for (let a = 0; a < 3; a++) {
+      let v = 0;
+      for (let i = 0; i < n; i++) {
+        const j = a * n + i;
+        v = (v + (pb[j] | (pb[n * 3 + j] << 8))) << 16 >> 16;          // add the difference, wrap to int16
+        pos[i * 3 + a] = v * k;
+        col[i * 3 + a] = cb[j] / 255;
+      }
+    }
+    for (let i = 0; i < n; i++) { rsk[i * 2] = kb[i]; rsk[i * 2 + 1] = kb[n + i]; }
+    for (let i = 0, hw = 0; i < m; i++) {
+      const c = ib[i] | (ib[m + i] << 8);
+      idx[i] = hw - c;
+      if (c === 0) hw++;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    g.setAttribute('rsk', new THREE.BufferAttribute(rsk, 2, true));   // (baked occlusion, camo flag)
+    g.setIndex(new THREE.BufferAttribute(idx, 1));
+    g.computeVertexNormals();                                        // hard edges stay hard: their vertices are split
+    g.computeBoundingSphere();
+    return g;
   }
 
   function create(kind, opts) {
@@ -68,6 +99,133 @@
     return g;
   }
 
+  /* ---------------- V1.9 jets: Kestrel, Wasp, Shade (hostile) and Gyrfalcon (friendly) ----------------
+     Data: RS.blenderJets (models_blender_jets_data.js). Each vertex carries k = (baked occlusion, camo flag); faces with
+     the flag get their camouflage and panel lines from the shader below, per pixel, so they stay crisp in the EO camera.
+     The procedural models (models_jets.js, jet_friend.js) stay as the fallback, and for anything these don't cover:
+     the bomber and AWACS, other loadouts, schemes or markings, lights or afterburner. */
+  const JETS = {
+    fighter: { key: 'jet_fighter', name: 'Kestrel', role: 'Air-superiority fighter', threat: 'high', loadouts: ['strike'] },
+    light: { key: 'jet_light', name: 'Wasp', role: 'Light multirole fighter', threat: 'medium', loadouts: ['strike'] },
+    stealth: { key: 'jet_stealth', name: 'Shade', role: 'Low-observable strike', threat: 'high', loadouts: ['clean'] }
+  };
+  // camouflage per airframe: the same colours, scales and panel spacing as models_jets.js / jet_friend.js
+  const CAMO = {
+    jet_fighter: { mode: 0, c: [0x4d5a34, 0x8c7c56, 0x4d5a34, 0x4d5a34], u: 0x9ea6a8, s: 0.42, panel: 1.2 },
+    jet_light: { mode: 0, c: [0x4d5a34, 0x8c7c56, 0x4d5a34, 0x4d5a34], u: 0x9ea6a8, s: 0.5, panel: 1.0 },
+    jet_stealth: { mode: 0, c: [0x505760, 0x3a4047, 0x505760, 0x505760], u: 0x737a82, s: 0.3, panel: 1.5 },
+    jet_friend: { mode: 1, c: [0x56697a, 0x768da0, 0x9fb1bf, 0xc6d1d9], u: 0xb0bec6, s: 1, panel: 1.2 }   // lifted: the procedural one adds a sky reflection
+  };
+  const JET_VS = 'attribute vec2 rsk;\nvarying vec3 vCamoP;\nvarying vec3 vCamoN;\nvarying vec2 vK;\n';
+  const JET_FS = `
+varying vec3 vCamoP; varying vec3 vCamoN; varying vec2 vK;
+uniform vec3 uC0; uniform vec3 uC1; uniform vec3 uC2; uniform vec3 uC3; uniform vec3 uU; uniform float uS; uniform float uPanel; uniform float uMode;
+float cHash(vec3 p){ p = fract(p*0.3183099+0.1); p*=17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
+float cNoise(vec3 x){ vec3 i=floor(x); vec3 f=fract(x); f=f*f*(3.0-2.0*f);
+  return mix(mix(mix(cHash(i),cHash(i+vec3(1,0,0)),f.x),mix(cHash(i+vec3(0,1,0)),cHash(i+vec3(1,1,0)),f.x),f.y),
+             mix(mix(cHash(i+vec3(0,0,1)),cHash(i+vec3(1,0,1)),f.x),mix(cHash(i+vec3(0,1,1)),cHash(i+vec3(1,1,1)),f.x),f.y),f.z); }
+float cPanel(float v, float s){ float fw = fwidth(v); float d = abs(fract(v / s + 0.5) - 0.5) * s;
+  float keep = step(0.3, cHash(vec3(floor(v / s + 0.5), s * 7.1, 3.3)));
+  return keep * (1.0 - smoothstep(0.01, 0.01 + fw * 1.2, d)) * (1.0 - smoothstep(s * 0.02, s * 0.07, fw)); }
+`;
+  const JET_FS_COLOR = `
+  vec3 cN = normalize(vCamoN), cCol;
+  float cUnder = 1.0 - smoothstep(-0.55, -0.2, cN.y);
+  if (uMode < 0.5) {                 // two-tone blotches (hostile)
+    vec3 cp = vCamoP * uS;
+    float cn = cNoise(cp) * 0.65 + cNoise(cp * 2.3 + 7.1) * 0.35;
+    cCol = mix(mix(uC0, uC1, smoothstep(0.47, 0.53, cn)), uU, cUnder);
+    cCol *= 0.9 + 0.12 * cNoise(vCamoP * 3.1);
+  } else {                           // digital: 0.3 m cells, four tones (Gyrfalcon)
+    vec3 q = floor(vCamoP / 0.3) + 0.5, cp = q * 0.3;
+    float n = 0.55 * cNoise(cp / 9.6) + 0.3 * cNoise(cp / 4.8 + 3.1) + 0.15 * cNoise(cp / 2.4 + 9.7) + (cHash(q) - 0.5) * 0.07;
+    float k = cNoise(cp / 4.8 + vec3(3.3, 7.1, 1.7));
+    cCol = n < 0.4 ? (k > 0.55 ? uC0 : uC1) : (n < 0.53 ? uC2 : uC3);
+    cCol = mix(cCol, mix(cCol, uU, 0.45) * vec3(1.03, 1.04, 1.05), cUnder);   // paler belly
+  }
+  if (uPanel > 0.0) {                // engraved panel lines: frames along z, stringers on flat and side faces
+    float pz = cPanel(vCamoP.z, uPanel);
+    float px = 0.7 * cPanel(vCamoP.x + 0.37, uPanel * 1.9) * step(0.6, abs(cN.y));
+    float py = 0.7 * cPanel(vCamoP.y + 0.21, uPanel * 0.8) * step(0.6, abs(cN.x));
+    cCol *= 1.0 - 0.2 * max(pz, max(px, py));
+  }
+  float cAO = 0.4 + 0.6 * vK.x;
+  vec4 diffuseColor = vec4( mix(vec3(1.0), cCol, vK.y) * cAO, opacity );
+`;
+  // a little self-light so undersides stay readable from the ground (as the procedural jets do)
+  const JET_FS_EMIS = '#include <emissivemap_fragment>\n totalEmissiveRadiance += diffuseColor.rgb * (0.05 + 0.18 * cUnder);';
+  const jetMats = {};
+  function jetMaterial(key, name) {
+    const id = key + '|' + name;
+    if (jetMats[id]) return jetMats[id];
+    const D = THREE.DoubleSide;
+    let m;
+    if (name === 'glass') m = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.06, metalness: 0.75, transparent: true, opacity: 0.55, depthWrite: false, side: D });
+    else if (name === 'hot') m = new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true, side: D });
+    else if (name === 'flame') m = new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: D });
+    else {
+      const C = CAMO[key] || CAMO.jet_fighter;
+      m = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.72, metalness: 0.12, side: D });
+      const u = { uC0: { value: new THREE.Color(C.c[0]) }, uC1: { value: new THREE.Color(C.c[1]) }, uC2: { value: new THREE.Color(C.c[2]) }, uC3: { value: new THREE.Color(C.c[3]) },
+        uU: { value: new THREE.Color(C.u) }, uS: { value: C.s }, uPanel: { value: C.panel }, uMode: { value: C.mode } };
+      m.extensions = { derivatives: true };
+      m.onBeforeCompile = function (sh) {
+        Object.assign(sh.uniforms, u);
+        sh.vertexShader = JET_VS + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vCamoP = position; vCamoN = normal; vK = rsk;');
+        sh.fragmentShader = JET_FS + sh.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );', JET_FS_COLOR).replace('#include <emissivemap_fragment>', JET_FS_EMIS);
+      };
+      m.customProgramCacheKey = () => 'rs-blender-jet';
+      m.userData.camo = u;
+    }
+    return (jetMats[id] = m);
+  }
+  function createJet(key, opts, info) {
+    const D = RS.blenderJets && RS.blenderJets[key];
+    if (!D) return null;
+    const lod = opts && opts.lod === 'low' ? 'low' : 'high', L = D[lod] || D.high;
+    const g = new THREE.Group(); g.name = key;
+    let tris = 0, flames = [];
+    for (const name of Object.keys(L.parts)) {
+      if (name.indexOf('stores_') === 0 && name !== 'stores_' + info.loadout) continue;
+      const part = L.parts[name], mesh = new THREE.Mesh(geometry(key, lod, name, part, L.ext), jetMaterial(key, name));
+      mesh.name = name;
+      if (name === 'glass') mesh.renderOrder = 1;
+      if (name === 'flame') { mesh.renderOrder = 2; flames.push(mesh); }
+      g.add(mesh); tris += part.t;
+    }
+    const holders = D.nozzles.map((p, i) => { const o = new THREE.Object3D(); o.name = 'nozzle' + i; o.position.set(p[0], p[1], p[2]); g.add(o); return o; });
+    let thr = 0.6;
+    const ud = {
+      kind: info.kind, variant: info.variant, name: info.name, role: info.role, threat: info.threat, loadout: info.loadout,
+      length: D.length, span: D.span, height: D.height, triangles: tris, source: 'blender', lod,
+      // same calls as the procedural models; the Blender jets have no moving parts, lights or afterburner
+      nozzles: info.kind === 'jet_friend' ? holders.map(h => h.position.clone()) : holders,
+      setThrottle(v) { thr = Math.max(0, Math.min(1, v || 0)); flames.forEach(f => { f.visible = thr > 0.05; }); },
+      update() {}, setControls() {}, setLights() {}, setMarkings() {},
+      setMissiles(on) { g.children.forEach(c => { if (c.name.indexOf('stores_') === 0) c.visible = !!on; }); }
+    };
+    ud.setAfterburner = ud.setThrottle;
+    g.userData = ud;
+    if (info.kind === 'jet_friend') ud.setThrottle(0);
+    return g;
+  }
+  // which Blender jet, if any, answers this request (null = let the procedural model build it)
+  function jetFor(kind, o) {
+    o = o || {};
+    if (!RS.blenderJets || o.primitive || o.procedural || typeof kind !== 'string') return null;
+    if (kind === 'jet_friend') {
+      const lo = o.loadout === undefined || o.loadout === true ? 'cap' : o.loadout;
+      if ((lo !== 'cap' && lo !== 'strike') || o.missiles === false || o.lights === true || o.afterburner > 0 || (o.markings !== undefined && o.markings !== 'A')) return null;
+      return { key: 'jet_friend', kind, name: 'Gyrfalcon', role: 'heavy air-superiority fighter', loadout: lo };
+    }
+    const v = kind === 'jet_hostile' ? (o.variant || 'fighter') : kind.indexOf('jet_hostile_') === 0 ? kind.slice(12) : null;
+    const J = v && JETS[v];
+    if (!J || o.scheme || o.markings === false) return null;
+    const lo = v === 'stealth' ? 'clean' : (o.loadout === undefined || o.loadout === true) && v === 'light' ? 'strike' : o.loadout;
+    if (J.loadouts.indexOf(lo) < 0) return null;
+    return { key: J.key, kind: 'jet_hostile', variant: v, name: J.name, role: J.role, threat: J.threat, loadout: lo };
+  }
+
   let M = (typeof Models !== 'undefined') ? Models : window.Models; // eslint-disable-line no-undef
   if (!M || !RS.blenderData) return;
   const prev = typeof M.create === 'function' ? M.create.bind(M) : null;
@@ -75,8 +233,12 @@
     if (KINDS.indexOf(kind) >= 0 && !(opts && opts.primitive)) {
       try { const o = create(kind, opts); if (o) return o; } catch (e) { console.warn('RS.models: ' + kind + ' Blender model failed, using placeholder', e); }
     }
+    const J = jetFor(kind, opts);
+    if (J) {
+      try { const o = createJet(J.key, opts, J); if (o) return o; } catch (e) { console.warn('RS.models: ' + kind + ' Blender jet failed, using the procedural model', e); }
+    }
     return prev ? prev(kind, opts) : null;
   };
-  M.blender = { kinds: KINDS.slice(), create };
-  M.version = (M.version || '0') + '+blender-1.0';
+  M.blender = { kinds: KINDS.slice(), create, jets: Object.keys(JETS).map(v => 'jet_hostile_' + v).concat(['jet_friend']), jetFor };
+  M.version = (M.version || '0') + '+blender-1.1';
 })();
