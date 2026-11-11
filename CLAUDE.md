@@ -48,7 +48,8 @@ npm run balance           # tools/balance.js: a bot plays the campaign shifts
   tests. The browser checks run only when the workflow is started by hand with
   **browser** ticked.
 - Deploy: GitHub Pages serves the repo root of `main`, so merging to `main`
-  publishes `index.html`. There is no deploy workflow. Live:
+  publishes `index.html`. There is no deploy workflow.
+  `.github/workflows/publish-release.yml` publishes a GitHub Release (`v<version>`) whenever `VERSION` changes on `main`; the studio site reads that release for this game's version number and "what's new" line. Free, no keys, and it doesn't touch the deploy. Live:
   https://redskies.longlight.games/ Repo: https://github.com/Jxstrr0/RedSkies
 
 ## Code conventions (what the code actually does)

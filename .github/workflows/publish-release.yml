@@ -1,0 +1,55 @@
+# Publishes a GitHub Release for each new version of the game.
+#
+# Why: the Longlight site (longlight.games) reads each game's newest
+# release to show its version number and "what's new" line. Without a
+# release the site keeps showing an old, hand-typed number.
+#
+# How: on every push to main it reads the version from the VERSION file. If
+# there is no release called v<version> yet, it makes one, titled from the
+# commit that shipped it ("x.y.z.w: summary", or "summary (x.y.z.w)"). A
+# push that doesn't change the version does nothing.
+#
+# Free, and it uses no keys (only GitHub's own built-in token). It does not
+# touch the game or its deploy, and the tag it makes starts no other
+# workflow. Safe to delete; the site's number for this game would just
+# stop updating.
+name: Publish release
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write # to create the release and its tag
+concurrency:
+  group: publish-release
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50 # enough history to find this version's commit
+          persist-credentials: false
+      - name: Publish a release if this version has none
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=$(tr -d '[:space:]' < VERSION)
+          if ! echo "$V" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "No four-number version found in the VERSION file (got '$V')"; exit 1
+          fi
+          if gh release view "v$V" >/dev/null 2>&1; then
+            echo "Release v$V already exists. Nothing to do."
+            exit 0
+          fi
+          # The oldest recent commit titled "<version>: summary" is the merge
+          # that shipped this version; failing that, one ending "(<version>)".
+          # Its summary becomes the release title.
+          SUMMARY=$(git log -50 --format=%s | awk -v v="$V" '
+            index($0, v ": ") == 1 { a = substr($0, length(v) + 3) }
+            index($0, "(" v ")") { s = $0; sub(/ *\(#[0-9]+\)$/, "", s); sub(/ *\([0-9.]+\)$/, "", s); b = s }
+            END { print (a != "" ? a : b) }')
+          gh release create "v$V" --target "$GITHUB_SHA" \
+            --title "v$V - ${SUMMARY:-update}" \
+            --notes "${SUMMARY:-Update}."
+          echo "Published v$V."
