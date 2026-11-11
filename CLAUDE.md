@@ -28,7 +28,7 @@ npx playwright install chromium   # once, a Chromium for Playwright
 npm run check:browser     # builds, then runs test/*.check.js headless (slow)
 npm run balance           # tools/balance.js: a bot plays the campaign shifts
 pip install bpy           # once, Blender as a Python module (Python 3.13)
-python tools/blender/build_models.py   # rebuilds src/models_blender_data.js
+python tools/blender/build_models.py   # rebuilds src/models_blender_data.js and src/models_blender_jets_data.js
 ```
 
 ## Build, version, deploy
@@ -40,7 +40,7 @@ python tools/blender/build_models.py   # rebuilds src/models_blender_data.js
   artifact flavour with no doctype/html/head/body).
 - The build fails if a file in `src/` is missing from `ORDER`, or the other way
   round. A new module goes into `ORDER` in load order.
-- `VERSION` holds `Major.Minor.Patch.Build` (now 1.8.0.0). The build stamps it
+- `VERSION` holds `Major.Minor.Patch.Build` (now 1.9.0.0). The build stamps it
   into the `<title>` and `window.RS.VERSION`. Major = overhaul, Minor = feature
   batch, Patch = tweak or fix, Build = republish. Bump it before a release.
 - After any `src/` change: run `node build.js` and commit `index.html` with it.
@@ -81,11 +81,17 @@ python tools/blender/build_models.py   # rebuilds src/models_blender_data.js
   same box has SAVE FILE / LOAD FILE (backup files) and a storage line
   (`RS.storage` in `main.js`, `navigator.storage.persist`); `settings.backupAt`
   holds the last backup time for the menu reminder.
-- Blender models: `tools/blender/build_models.py` is the source. It writes
-  `src/models_blender_data.js` (base64 positions, normals, painted vertex
-  colours with baked ambient occlusion, a high and a low level of detail).
-  After changing the script: run it, run `node build.js`, commit all three.
-  CI does not need Blender. No textures and no model files at runtime.
+- Blender models: `tools/blender/build_models.py` (with `tools/blender/jets.py`
+  for the jets) is the source. It writes `src/models_blender_data.js` (drone,
+  helicopter, transport: base64 positions, normals, painted vertex colours with
+  baked ambient occlusion, a high and a low level of detail) and
+  `src/models_blender_jets_data.js` (the four jets, a packed format: see the
+  last section of `contracts.js`). The jets' camouflage and panel lines are
+  drawn by a shader in `models_blender.js`, not painted into the vertices.
+  After changing a script: run it, run `node build.js`, commit the scripts,
+  both data files and `index.html`. CI does not need Blender. No textures and
+  no model files at runtime. The procedural jets (`models_jets.js`,
+  `jet_friend.js`) stay as the fallback and for the bomber and AWACS.
 - Fictional names only: Varenna, Kessel, Lance, Dart, Harrow. No real units.
 - Portrait only. Landscape under 560 px tall shows the ROTATE TO PORTRAIT cover
   and pauses the shift. Test at 390×844 and 360×740.
@@ -100,7 +106,7 @@ python tools/blender/build_models.py   # rebuilds src/models_blender_data.js
 | `src/campaign.js` | The six campaign shifts and their B/C variants, story, budget, prices, `grade()` |
 | `src/sim.js` | The air picture: radar, tracks, IFF, weapons, ARMs, jamming, ROE, comms, evasion |
 | `src/models*.js`, `src/jet_friend.js` | Procedural three.js models (launchers, ground kit, jets, weapons) |
-| `src/models_blender_data.js`, `src/models_blender.js` | Blender-built drone, helicopter and transport: generated data (do not edit) and its loader |
+| `src/models_blender_data.js`, `src/models_blender_jets_data.js`, `src/models_blender.js` | Blender-built drone, helicopter, transport and the four flown jets: generated data (do not edit) and their loader (jets' camouflage shader too) |
 | `src/scene.js` | The 3-D world: terrain, sky and weather, aircraft, missiles, effects, EO picture |
 | `src/cabin.js` | The operator cabin; projects the DOM radar console and `#eo` onto its monitors |
 | `src/eo.js` | EO tracker symbology (TV/IR camera overlay) |
@@ -115,7 +121,7 @@ python tools/blender/build_models.py   # rebuilds src/models_blender_data.js
 | `test/*.check.js`, `test/_browser.js` | Playwright checks: browser, ui, meta, scene, audio; shared setup |
 | `test/run.js` | Runs every test file and exits 1 if any failed |
 | `tools/balance.js` | The bot operator; run before and after gameplay changes |
-| `tools/blender/build_models.py` | Headless Blender script: models the aircraft, bakes ambient occlusion, writes `src/models_blender_data.js` |
+| `tools/blender/build_models.py`, `tools/blender/jets.py` | Headless Blender scripts: model the aircraft and jets, bake ambient occlusion, write both data files |
 | `tools/make-icons.js`, `icons/`, `manifest.webmanifest` | Home-screen icon: `icons/icon.svg` is the source; the script (run by hand, needs Playwright) renders the PNGs |
 | `plan/status.md` | Version history, decisions, back-burner list |
 | `VERSION`, `build.js`, `index.html`, `dist/` | Version, build script, built page, build outputs (`dist/` is ignored by git) |
@@ -136,7 +142,7 @@ python tools/blender/build_models.py   # rebuilds src/models_blender_data.js
 
 ## Current status
 
-- V1.8.0.0 is on `main` and live. Built and playable: the Training Watch, a
+- V1.9.0.0 is on `main` and live. Built and playable: the Training Watch, a
   six-shift campaign with three variants per shift, Free watch, Survival,
   medals, the resupply shop, save codes with backup files, the 3-D operator
   cabin with the EO camera, procedural audio and haptics.
@@ -148,7 +154,9 @@ python tools/blender/build_models.py   # rebuilds src/models_blender_data.js
   next" hint line (Settings → HINTS) and a TRAINING offer on the first briefing.
   1.8.0.0 is the first Blender model pass: the drone, the helicopter and the
   transport plane are built by `tools/blender/build_models.py`.
-  Next feature batch is 1.9.0.0, next fix 1.8.1.0.
+  1.9.0.0 is the second Blender pass: the Kestrel, Wasp, Shade and Gyrfalcon
+  jets (`tools/blender/jets.py`).
+  Next feature batch is 1.10.0.0, next fix 1.9.1.0.
 - Own address: since November 2026 every Longlight game has its own subdomain,
   so Red Skies has its own localStorage, Cache Storage and quota. Saves from
   before the move stay on the old shared origin, `jxstrr0.github.io` (Kelbo
