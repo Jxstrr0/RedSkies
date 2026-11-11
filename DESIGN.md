@@ -50,7 +50,11 @@ battery's cabin and work the radar scope.
 - **Title**: an animated cover over the live 3-D scene. TAP TO BEGIN unlocks
   audio.
 - **Menu**: TRAINING (shown until it is done), CAMPAIGN, SURVIVAL, FREE WATCH,
-  SETTINGS.
+  HOW TO PLAY, SETTINGS.
+- **How to play** (1.7.0.0): one page, the field card. The drill in five steps
+  (find, ask, decide, assign, fire), the three scope symbols, and what the
+  console words mean (ROE, TX, ARM, Pk and so on). Opens from the menu, the
+  first briefing (while training is not done), Settings and the pause screen.
 - **Campaign map**: the six shifts, best grades and medals. Grade D or better
   unlocks the next shift.
 - **Briefing**: the shift's story, then CONDITIONS, EXPECTED THREATS,
@@ -58,7 +62,7 @@ battery's cabin and work the radar scope.
 - **Play**: the cabin view. The radar console (scope, TRACK/IFF, BATTERY and
   COMMS tabs, launcher strip, thumb-zone buttons) and the EO camera are DOM
   elements projected onto the cabin's monitors.
-- **Pause**: RESUME, RESTART SHIFT (or RESTART RUN), END RUN in survival, QUIT.
+- **Pause**: RESUME, HOW TO PLAY, RESTART SHIFT (or RESTART RUN), END RUN in survival, QUIT.
   Rotating the phone to landscape pauses the shift under a ROTATE TO PORTRAIT
   cover.
 - **Debrief**: grade, the four score parts, stats, medals, and a 20x replay
@@ -68,7 +72,8 @@ battery's cabin and work the radar scope.
 - **Free watch setup**: seed, difficulty slider (EASY to HARD, 0 to 1),
   duration 6/8/10 minutes, time of day, sky, and six random-event toggles.
 - **Survival**: seed, HOLD THE LINE, best five runs table.
-- **Settings**: SOUND, HAPTICS, TRAINING, RESET PROGRESS, and SAVE CODE with
+- **Settings**: SOUND, HAPTICS, HINTS (the "what next" line under the selected
+  track, on by default), TRAINING, HOW TO PLAY, RESET PROGRESS, and SAVE CODE with
   BACK UP and RESTORE screens.
 
 ## Systems

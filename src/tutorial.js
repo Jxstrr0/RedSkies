@@ -330,6 +330,16 @@
     } else ring.className = '';
     card.classList.add('on');
     place(r, !oops && !!st.eye);
+    liftToast();
+  }
+  /** V1.7: pop-up messages (#toast) sit just above the launcher strip, where the coach card often is. While the card is there
+   *  the message moves to just above the card, so it never covers the card's text or its NEXT button. */
+  function liftToast() {
+    const t = $('toast'); if (!t) return;
+    const ls = ($('lstrip') || $('thumbzone')), lt = ls ? ls.getBoundingClientRect().top : innerHeight, c = card.getBoundingClientRect();
+    const low = c.height && c.bottom > lt - 70;                 // the card reaches into the message's usual place
+    const v = low ? Math.round(innerHeight - c.top + 8) + 'px' : '';
+    if (t.style.bottom !== v) t.style.bottom = v;
   }
   const oopsText = () => '<b>Oops, that was a friendly aircraft.</b> In a real watch that ends your shift. ' +
     'Always check IFF and the radio before you call HOSTILE. Let\'s try that again.';
@@ -428,6 +438,7 @@
     cancelAnimationFrame(raf); raf = 0;
     if (card) card.classList.remove('on');
     if (ring) ring.className = '';
+    const tt = $('toast'); if (tt) tt.style.bottom = '';
     setHold(false);
     if (RS.main && RS.main.hold) RS.main.hold(false);
     RS.bus.emit('TUTORIAL', { step: STEPS[idx].id, done: isDone() });
