@@ -17,6 +17,8 @@
    Tutorial hooks (RS.tutorial feature-detected): menu TRAINING (when !done) + SETTINGS TRAINING call RS.tutorial.start();
    SHIFT_END of a def.tutorial shift is ignored (no debrief/save); pause QUIT during it calls RS.tutorial.stop().
    Also: replay {play(on?), seek(t), get state}, show('surv'|'survival'), END RUN (pause, endless) → endShift('ended').
+   V1.7: HOW TO PLAY field card (help(from); show('help')), reached from the menu, the first briefing, settings and pause;
+   settings.hints (RS.settings.hints) switches the "what next" line in ui.js.
    Everything that depends on the SIM's V1.1 additions (makeSurvivalShift, RS.sim.history, stats.waves/firstShotKills/…)
    is feature-detected; meta keeps its own light history/tally as a fallback.
    ===================================================================== */
@@ -83,6 +85,12 @@
 #meta .sb { width: 48px; height: 48px; border: 1px solid #1a6b39; border-radius: 6px; background: #07140c; color: #45ff84; font: inherit; font-size: 22px; cursor: pointer; }
 #meta .sb[disabled] { opacity: .3; cursor: default; }
 #meta .tot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+#meta ol.drill { margin: 0; padding-left: 20px; } #meta ol.drill li { margin: 5px 0; } #meta ol.drill li > b:first-child { letter-spacing: .08em; }
+#meta .sym { display: flex; align-items: center; gap: 10px; margin: 4px 0; }
+#meta .sym i { flex: 0 0 12px; height: 12px; border: 2px solid #ffb020; }
+#meta .sym i.f { border-color: #3fb8f0; border-radius: 50%; } #meta .sym i.h { border-color: #ff4b3a; transform: rotate(45deg) scale(.85); }
+#meta table.gl td { vertical-align: top; padding: 6px 4px; } #meta table.gl td:first-child { white-space: nowrap; color: #ffb020; padding-right: 10px; }
+#meta table.gl tr:first-child td { border-top: 0; }
 #meta .tg { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 48px; padding: 4px 12px; border: 1px solid #2f4a39;
   border-radius: 6px; background: #0b100e; color: #b9d6c2; font: inherit; font-size: 12px; letter-spacing: .06em; text-align: left; cursor: pointer; }
 #meta .tg em { font-style: normal; font-weight: 700; color: #6d8a76; }
@@ -162,7 +170,7 @@
   /** (Re)read every save key: at boot, and after a save code is restored. */
   function loadAll() {
     camp = loadCamp();
-    cfg = Object.assign({ sound: true, haptics: true, voice: true }, load('settings', {}));
+    cfg = Object.assign({ sound: true, haptics: true, voice: true, hints: true }, load('settings', {}));
     const fo = load('free', null);
     freeOpts = Object.assign(defaultFree(), fo && typeof fo === 'object' ? fo : {});
     freeOpts.ev = Object.assign({}, freeOpts.ev);
@@ -174,7 +182,7 @@
     }
   }
   function applySettings() {
-    RS.settings.sound = cfg.sound; RS.settings.haptics = cfg.haptics; RS.settings.voice = cfg.voice !== false;
+    RS.settings.sound = cfg.sound; RS.settings.haptics = cfg.haptics; RS.settings.voice = cfg.voice !== false; RS.settings.hints = cfg.hints !== false;
     try { if (RS.audio && RS.audio.setMuted) RS.audio.setMuted(!cfg.sound); } catch (e) { /* audio optional */ }
   }
   function wrapVibrate() {                  // haptics flag gates every navigator.vibrate call (audio/ui use it directly)
@@ -209,11 +217,12 @@
     const train = RS.tutorial && !RS.tutorial.done, sb = surv.best[0];
     show('menu', `<h1>RED SKIES</h1><div class="sub">BATTERY KESSEL · REPUBLIC OF VARENNA</div><div style="height:18px"></div>` +
       remindBox() +
-      (train ? btn('train', 'TRAINING ▸<small>Recommended · a guided first watch</small>', 'amb col', 'id="m-train"') : '') +
+      (train ? btn('train', 'TRAINING ▸<small>Start here · a guided first watch, about 3 minutes</small>', 'amb col', 'id="m-train"') : '') +
       btn('map', `CAMPAIGN<small>${sub}</small>`, (train ? '' : 'pri ') + 'col', 'id="m-campaign"') +
       btn('surv', `SURVIVAL<small>Hold as long as you can${sb ? ' · best wave ' + sb.waves : ''}</small>`, 'col', 'id="m-surv"') +
       btn('free', 'FREE WATCH<small>Seeded skirmish, your rules</small>', 'col', 'id="m-free"') +
-      btn('settings', 'SETTINGS<small>Sound · haptics · progress · save code</small>', 'dim col', 'id="m-settings"') +
+      btn('help', 'HOW TO PLAY<small>The drill in five steps · what the console words mean</small>', 'dim col', 'id="m-help"') +
+      btn('settings', 'SETTINGS<small>Sound · haptics · hints · progress · save code</small>', 'dim col', 'id="m-settings"') +
       `<div class="sub" style="margin-top:14px">a game by Longlight Interactive${RS.VERSION ? ' · V' + RS.VERSION : ''}</div>`);
   }
 
@@ -335,6 +344,9 @@
     const kick = mode.type === 'campaign' ? `BRIEFING · SHIFT ${mode.idx + 1} OF ${CP().shifts.length}` : sv ? 'BRIEFING · SURVIVAL' : 'BRIEFING · FREE WATCH';
     show('briefing', `<div class="kick">${kick}</div><h2 id="m-bname">${esc(def.name.replace(/^Shift \d+:\s*/, ''))}</h2>` +
       `<p>${esc(situation)}</p>` +
+      (RS.tutorial && RS.tutorial.start && !RS.tutorial.done ? `<div class="box" id="m-newbie" style="border-color:#ffb020"><div class="sec">FIRST TIME HERE?</div>` +
+        `<p style="margin-bottom:8px">The Training Watch shows every control in about 3 minutes. Nothing can go wrong in it.</p>` +
+        `<div class="row2">${btn('train', 'TRAINING ▸', 'amb')}${btn('help', 'HOW TO PLAY', 'dim', 'data-from="briefing"')}</div></div>` : '') +
       `<div class="box"><div class="sec">EXPECTED THREATS</div><ul>${threats.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>` +
       (friends.length ? `<div class="box"><div class="sec">FRIENDLY TRAFFIC</div>${fr}</div>` : '') +
       `<div class="box" id="m-wx"><div class="sec">CONDITIONS</div><p><b class="cyan">${esc(wxLine(def.weather))}</b></p>${evs ? `<ul>${evs}</ul>` : ''}</div>` +
@@ -705,7 +717,10 @@
     show('settings', `<div class="kick">SETTINGS</div><h2>CONSOLE</h2>` +
       `<button class="tg" data-m="sound" id="m-sound" aria-pressed="${cfg.sound}">SOUND<em>${cfg.sound ? 'ON' : 'OFF'}</em></button>${hint}` +
       `<button class="tg" data-m="haptics" id="m-haptics" aria-pressed="${cfg.haptics}">HAPTICS<em>${cfg.haptics ? 'ON' : 'OFF'}</em></button>` +
+      `<button class="tg" data-m="hints" id="m-hints" aria-pressed="${cfg.hints !== false}">HINTS<em>${cfg.hints !== false ? 'ON' : 'OFF'}</em></button>` +
+      `<p class="muted" style="font-size:11px;margin-top:-4px">A "what next" line under the selected track.</p>` +
       (RS.tutorial && RS.tutorial.start ? btn('train', 'TRAINING<small>Replay the guided first watch</small>', 'dim col', 'id="m-strain"') : '') +
+      btn('help', 'HOW TO PLAY<small>The drill · console words</small>', 'dim col', 'id="m-shelp" data-from="settings"') +
       `<div class="box"><div class="sec">PROGRESS</div><p style="margin-bottom:8px">Campaign: shift ${Math.min(camp.next + 1, CP().shifts.length)} of ${CP().shifts.length}${camp.next >= CP().shifts.length ? ' (complete)' : ''}.</p>` +
       (resetArm ? `<p class="red" style="margin-bottom:8px">Erase all campaign progress? This cannot be undone.</p><div class="row2">${btn('resetyes', 'ERASE', 'red', 'id="m-resetyes"')}${btn('resetno', 'CANCEL', 'dim')}</div>`
         : btn('reset', 'RESET PROGRESS', 'amb', 'id="m-reset"')) + `</div>` +
@@ -892,15 +907,61 @@
     const s = RS.sim.state;
     if (!s.shift.running || screen) return false;
     RS.main.pause();
+    pauseScreen();
+    return true;
+  }
+  function pauseScreen() {
+    const s = RS.sim.state;
     const tut = !!(curDef && curDef.tutorial), endless = !!(s.shift.endless || (curDef && curDef.endless));
     const when = endless ? `WAVE ${s.shift.wave || 1} · ${mmss(s.shift.elapsed)}` : `${mmss(s.shift.elapsed)} / ${mmss(s.shift.duration)}`;
     show('pause', `<div style="height:8vh"></div><div class="kick" style="text-align:center">PAUSED</div><h2 style="text-align:center">${esc(s.shift.name)}</h2>` +
       `<p class="muted" style="text-align:center">${when}</p>` +
       btn('resume', 'RESUME', 'pri', 'id="m-resume"') +
+      btn('help', 'HOW TO PLAY', 'dim', 'id="m-phelp" data-from="pause"') +
       (tut ? '' : btn('restart', endless ? 'RESTART RUN' : 'RESTART SHIFT', 'amb', 'id="m-restart"')) +
       (endless ? btn('endrun', 'END RUN<small>Bank the score</small>', 'amb col', 'id="m-endrun"') : '') +
       btn('quit', tut ? 'QUIT TRAINING' : 'QUIT TO MENU', 'red', 'id="m-quit"'));
-    return true;
+  }
+
+  /* ---------- V1.7 field card: how to play, on one page (menu, briefing, settings, pause) ---------- */
+  let helpFrom = 'menu';
+  function help(from) {
+    helpFrom = from || 'menu';
+    const W = (content() && content().weapons) || {}, km = (k, d) => (W[k] && W[k].maxKm) || d;
+    const step = (n, t, x) => `<li><b class="${n}">${t}.</b> ${x}</li>`;
+    const g = (k, x) => `<tr><td><b>${k}</b></td><td style="text-align:left">${x}</td></tr>`;
+    show('help', `<div class="kick">FIELD CARD</div><h2>HOW TO PLAY</h2>` +
+      `<p>Protect the airbase. Shoot down what is hostile, and <b class="amber">never</b> fire on a friendly aircraft: that ends your shift.</p>` +
+      `<div class="box"><div class="sec">THE DRILL · THE BOTTOM KEYS, LEFT TO RIGHT</div><ol class="drill">` +
+      step('amber', 'FIND', 'Tap a contact on the round scope.') +
+      step('amber', 'ASK', 'Tap <b>IFF</b>. A friend answers. No answer is a warning, not proof: a friend\'s IFF can be broken.') +
+      step('cyan', 'DECIDE', 'Read the radio calls in <b>COMMS / LOG</b> and remember the briefing. Then tap <b class="cyan">FRIEND</b> or <b class="red">HOSTILE</b>.') +
+      step('amber', 'ASSIGN', `Tap <b>ASSIGN</b>, or a launcher key yourself. Lance reaches ${km('lance', 60)} km, Dart ${km('dart', 25)} km, the gun ${km('harrow', 4)} km.`) +
+      step('red', 'FIRE', 'Press and hold <b class="red">FIRE</b> until the ring fills.') + `</ol></div>` +
+      `<div class="box"><div class="sec">ON THE SCOPE</div><div class="sym"><i class="u"></i> amber square: unknown</div>` +
+      `<div class="sym"><i class="f"></i> blue circle: friend</div><div class="sym"><i class="h"></i> red diamond: hostile</div>` +
+      `<p class="muted" style="margin-top:6px">You are in the middle. North is up. The rings are distance in km.</p></div>` +
+      `<div class="box"><div class="sec">CONSOLE WORDS</div><table class="gl">` +
+      g('ROE', 'Your firing order from HQ. <b>HOLD</b>: no firing. <b>TIGHT</b>: only tracks you marked HOSTILE. <b>FREE</b>: anything not marked FRIEND.') +
+      g('TX', 'How long the radar has been sending. After 90 s it turns red: enemies can aim missiles at it. Switch <b>RADAR</b> off for a while when the sky is quiet.') +
+      g('ARM', 'A missile homing on your radar. Switch the radar off until it has passed.') +
+      g('Pk', 'The chance that a shot hits.') +
+      g('OUT RNG', 'The target is too far for that launcher. Wait, or use a longer-range one.') +
+      g('RLD', 'The launcher is reloading.') +
+      g('1× / 2×', 'One missile per press, or a salvo of two: surer, but it uses more ammunition.') +
+      g('TRK', 'How many contacts the radar is tracking.') +
+      g('RDR', 'Radar health. When it is damaged a <b>REPAIR</b> key appears on the scope.') +
+      g('JAM', 'An enemy is jamming the radar. Tracks get worse along that bearing.') +
+      g('Q', 'Track quality. A low number means a shaky track.') +
+      g('EO', 'The tracker camera, top right. Tap it to make it big. TV by day, IR at night.') +
+      `</table></div>` +
+      btn('helpback', '◂ BACK', 'pri', 'id="m-helpback"'));
+  }
+  function helpBack() {
+    if (helpFrom === 'pause' && RS.sim.state.shift.running) return pauseScreen();
+    if (helpFrom === 'settings') return settings();
+    if (helpFrom === 'briefing' && curDef) return briefing(curDef);
+    return menu();
   }
   function resume() { if (screen !== 'pause') return false; hide(); RS.main.resume(); return true; }
   function restart() {
@@ -960,6 +1021,9 @@
       case 'dur': readFree(); freeOpts.dur = +el.dataset.d; save('free', freeOpts); return free();
       case 'fbrief': readFree(); save('free', freeOpts); mode = { type: 'free', opts: clone(freeOpts) }; return briefing(buildFree(freeOpts));
       case 'settings': resetArm = false; return settings();
+      case 'help': return help(el.dataset.from);
+      case 'helpback': return helpBack();
+      case 'hints': cfg.hints = cfg.hints === false; applySettings(); save('settings', cfg); return settings();
       case 'sound': cfg.sound = !cfg.sound; applySettings(); save('settings', cfg); return settings();
       case 'haptics': cfg.haptics = !cfg.haptics; applySettings(); save('settings', cfg); if (cfg.haptics) try { navigator.vibrate && navigator.vibrate(20); } catch (x) { /* */ } return settings();
       case 'reset': resetArm = true; return settings();
@@ -1051,7 +1115,7 @@
     menu();
   }
 
-  const SCREENS = { menu, map, free, settings, resupply, debrief, survival: survSetup, surv: survSetup, backup, restore: restoreScr };
+  const SCREENS = { menu, map, free, settings, help: () => help('menu'), resupply, debrief, survival: survSetup, surv: survSetup, backup, restore: restoreScr };
   RS.meta = { init, startShift, show: n => SCREENS[n] && SCREENS[n](),
     pause, resume, restart, quit, grade, reset, buildFree, buildSurvival, survivalScore, medals, threatWords, wxLine, MEDALS,
     replay: { play: on => rpPlay(on), seek: t => { if (rp) { rp.t = Math.max(rp.t0, Math.min(rp.t1, t)); drawReplay(); } }, get state() { return rp && { t: rp.t, t0: rp.t0, t1: rp.t1, playing: rp.playing, R: rp.R }; } },

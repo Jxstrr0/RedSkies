@@ -112,6 +112,8 @@ console.log('damaged codes are rejected');
   bad.forEach(o => ok(throwsMsg(() => b.RS.savecode.apply(b.RS.savecode.read(S.encode(o))), D) && same(b.dump(), keep), 'bad shape rejected, nothing written: ' + JSON.stringify(o)));
   ok(same(b.RS.savecode.read(S.encode({ v: 1, d: { campaign: { next: 2 }, extra: { x: 1 } } })).d, { campaign: { next: 2 } }), 'unknown keys inside a v1 code are ignored');
   ok(same(b.RS.savecode.read(S.encode({ v: 1, d: { settings: { sound: true, backupAt: 1760000000000 } } })).d.settings.backupAt, 1760000000000), 'V1.6 settings.backupAt (last backup time) is accepted');
+  ok(same(b.RS.savecode.read(S.encode({ v: 1, d: { settings: { sound: true, hints: false } } })).d.settings.hints, false), 'V1.7 settings.hints is accepted');
+  ok(throwsMsg(() => b.RS.savecode.read(S.encode({ v: 1, d: { settings: { hints: 'no' } } })), D), 'V1.7 settings.hints must be true or false');
   // V1.6 backup files: the file holds the code plus a newline; trimmed, it reads back the same
   const file = S.make() + '\n', fd = S.read(String(file).trim());
   ok(Object.keys(fd.d).length === 5, 'a backup file (code + newline, trimmed) reads back all 5 keys');
