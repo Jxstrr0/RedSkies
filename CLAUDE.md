@@ -27,6 +27,8 @@ npm ci                    # once, installs Playwright for the browser checks
 npx playwright install chromium   # once, a Chromium for Playwright
 npm run check:browser     # builds, then runs test/*.check.js headless (slow)
 npm run balance           # tools/balance.js: a bot plays the campaign shifts
+pip install bpy           # once, Blender as a Python module (Python 3.13)
+python tools/blender/build_models.py   # rebuilds src/models_blender_data.js
 ```
 
 ## Build, version, deploy
@@ -38,7 +40,7 @@ npm run balance           # tools/balance.js: a bot plays the campaign shifts
   artifact flavour with no doctype/html/head/body).
 - The build fails if a file in `src/` is missing from `ORDER`, or the other way
   round. A new module goes into `ORDER` in load order.
-- `VERSION` holds `Major.Minor.Patch.Build` (now 1.7.0.0). The build stamps it
+- `VERSION` holds `Major.Minor.Patch.Build` (now 1.8.0.0). The build stamps it
   into the `<title>` and `window.RS.VERSION`. Major = overhaul, Minor = feature
   batch, Patch = tweak or fix, Build = republish. Bump it before a release.
 - After any `src/` change: run `node build.js` and commit `index.html` with it.
@@ -79,6 +81,11 @@ npm run balance           # tools/balance.js: a bot plays the campaign shifts
   same box has SAVE FILE / LOAD FILE (backup files) and a storage line
   (`RS.storage` in `main.js`, `navigator.storage.persist`); `settings.backupAt`
   holds the last backup time for the menu reminder.
+- Blender models: `tools/blender/build_models.py` is the source. It writes
+  `src/models_blender_data.js` (base64 positions, normals, painted vertex
+  colours with baked ambient occlusion, a high and a low level of detail).
+  After changing the script: run it, run `node build.js`, commit all three.
+  CI does not need Blender. No textures and no model files at runtime.
 - Fictional names only: Varenna, Kessel, Lance, Dart, Harrow. No real units.
 - Portrait only. Landscape under 560 px tall shows the ROTATE TO PORTRAIT cover
   and pauses the shift. Test at 390×844 and 360×740.
@@ -93,6 +100,7 @@ npm run balance           # tools/balance.js: a bot plays the campaign shifts
 | `src/campaign.js` | The six campaign shifts and their B/C variants, story, budget, prices, `grade()` |
 | `src/sim.js` | The air picture: radar, tracks, IFF, weapons, ARMs, jamming, ROE, comms, evasion |
 | `src/models*.js`, `src/jet_friend.js` | Procedural three.js models (launchers, ground kit, jets, weapons) |
+| `src/models_blender_data.js`, `src/models_blender.js` | Blender-built drone, helicopter and transport: generated data (do not edit) and its loader |
 | `src/scene.js` | The 3-D world: terrain, sky and weather, aircraft, missiles, effects, EO picture |
 | `src/cabin.js` | The operator cabin; projects the DOM radar console and `#eo` onto its monitors |
 | `src/eo.js` | EO tracker symbology (TV/IR camera overlay) |
@@ -107,6 +115,7 @@ npm run balance           # tools/balance.js: a bot plays the campaign shifts
 | `test/*.check.js`, `test/_browser.js` | Playwright checks: browser, ui, meta, scene, audio; shared setup |
 | `test/run.js` | Runs every test file and exits 1 if any failed |
 | `tools/balance.js` | The bot operator; run before and after gameplay changes |
+| `tools/blender/build_models.py` | Headless Blender script: models the aircraft, bakes ambient occlusion, writes `src/models_blender_data.js` |
 | `tools/make-icons.js`, `icons/`, `manifest.webmanifest` | Home-screen icon: `icons/icon.svg` is the source; the script (run by hand, needs Playwright) renders the PNGs |
 | `plan/status.md` | Version history, decisions, back-burner list |
 | `VERSION`, `build.js`, `index.html`, `dist/` | Version, build script, built page, build outputs (`dist/` is ignored by git) |
@@ -127,7 +136,7 @@ npm run balance           # tools/balance.js: a bot plays the campaign shifts
 
 ## Current status
 
-- V1.7.0.0 is on `main` and live. Built and playable: the Training Watch, a
+- V1.8.0.0 is on `main` and live. Built and playable: the Training Watch, a
   six-shift campaign with three variants per shift, Free watch, Survival,
   medals, the resupply shop, save codes with backup files, the 3-D operator
   cabin with the EO camera, procedural audio and haptics.
@@ -137,7 +146,9 @@ npm run balance           # tools/balance.js: a bot plays the campaign shifts
   1.6.1.1 is a republish for the new address, redskies.longlight.games.
   1.7.0.0 is the "easier start" batch: the HOW TO PLAY field card, the "what
   next" hint line (Settings → HINTS) and a TRAINING offer on the first briefing.
-  Next feature batch is 1.8.0.0, next fix 1.7.1.0.
+  1.8.0.0 is the first Blender model pass: the drone, the helicopter and the
+  transport plane are built by `tools/blender/build_models.py`.
+  Next feature batch is 1.9.0.0, next fix 1.8.1.0.
 - Own address: since November 2026 every Longlight game has its own subdomain,
   so Red Skies has its own localStorage, Cache Storage and quota. Saves from
   before the move stay on the old shared origin, `jxstrr0.github.io` (Kelbo

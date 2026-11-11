@@ -752,6 +752,7 @@
       case 'jet_hostile': return { kind: 'jet_hostile', opts: { variant: HOSTILE_VARIANTS[idHash(v.id) % 3], loadout: 'strike' } };
       case 'strike_friend': return { kind: 'jet_friend', opts: { loadout: 'strike', lights: false } };
       case 'jet_friend': return { kind: 'jet_friend', opts: { loadout: 'cap', lights: false } };
+      // V1.8: transport, helo_attack and drone are Blender-built (models_blender.js ignores opts.placeholder, like the other vendor wrappers)
       case 'transport': return { kind: 'transport', opts: { placeholder: true } };
       case 'helo_friend': case 'helo_hostile': return { kind: 'helo_attack', opts: { placeholder: true } };
       case 'cruise_missile': return { kind: 'cruise_missile', opts: {} };
