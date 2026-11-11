@@ -1,17 +1,18 @@
-"""RED SKIES: Blender model pass (V1.8.0.0).
+"""RED SKIES: Blender model pass (V1.8.0.0 aircraft, V1.9.0.0 jets).
 
-Builds the drone, the helicopter and the transport aircraft in Blender, bakes ambient occlusion into their
-vertex colours with Cycles, makes a low-detail copy with the Decimate modifier, and writes the result to
-src/models_blender_data.js (plain JavaScript data: no loader, no extra request, still one offline page).
+Builds the drone, the helicopter and the transport aircraft (V1.8) and the four jets the game flies (V1.9,
+tools/blender/jets.py) in Blender, bakes ambient occlusion with Cycles, makes a low-detail copy with the Decimate
+modifier, and writes the result as plain JavaScript data (no loader, no extra request, still one offline page):
+src/models_blender_data.js (drone, helicopter, transport) and src/models_blender_jets_data.js (jets).
 src/models_blender.js turns that data into three.js meshes.
 
 Run it (needs Blender's Python module, `pip install bpy`, or a full Blender with `blender -b -P`):
 
-    python tools/blender/build_models.py            # writes src/models_blender_data.js
+    python tools/blender/build_models.py            # writes both data files
     node build.js                                   # then rebuild the page
 
-Axes while modelling: x = right, f = forward (nose), z = up, metres, origin near the centre of mass.
-Blender's y is -f. The exporter turns that into the game's axes (+Y up, +Z forward).
+Axes while modelling: x = across (the aircraft's left side, as in the game), f = forward (nose), z = up, metres,
+origin near the centre of mass. Blender's y is -f. The exporter turns that into the game's axes (+Y up, +Z forward).
 All designs are fictional.
 """
 import base64
@@ -25,6 +26,7 @@ from mathutils import Matrix, Vector, noise
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 OUT = os.path.join(ROOT, 'src', 'models_blender_data.js')
+OUT_JETS = os.path.join(ROOT, 'src', 'models_blender_jets_data.js')
 AO_SAMPLES = 48
 SEG = 14                       # sides of a fuselage ring
 
@@ -45,6 +47,7 @@ TIP = (0.85, 0.66, 0.10)
 RED = (0.62, 0.10, 0.08)
 WHITE = (0.82, 0.82, 0.80)
 GLASS = (0.13, 0.22, 0.28)
+SHADER = 'shader'              # paint for camouflage the game draws per pixel (jets: crisp camo and panel lines)
 
 
 class Builder:
@@ -73,9 +76,12 @@ class Builder:
             self.zones.append(self.paint)
         return self.zones.index(self.paint)
 
-    def _add(self, tmp):
-        """Merge a finished closed shape: fix its normals, tag its faces, append to the main mesh."""
-        bmesh.ops.recalc_face_normals(tmp, faces=tmp.faces[:])
+    def _add(self, tmp, face_paint=None, recalc=True, flat=False):
+        """Merge a finished shape: fix its normals (closed shapes), tag its faces, append to the main mesh.
+        face_paint: optional {tmp face: paint} for faces painted differently from the current paint.
+        recalc=False keeps the winding as built (open decals that must face a known way). flat: faceted shading."""
+        if recalc:
+            bmesh.ops.recalc_face_normals(tmp, faces=tmp.faces[:])
         zi, pi = self._zi(), self.parts.index(self.part)
         vmap = {}
         for v in tmp.verts:
@@ -85,10 +91,149 @@ class Builder:
                 nf = self.bm.faces.new([vmap[v] for v in fc.verts])
             except ValueError:
                 continue
-            nf[self.zone] = zi
+            p = face_paint.get(fc) if face_paint else None
+            if p is not None:
+                if p not in self.zones:
+                    self.zones.append(p)
+                nf[self.zone] = self.zones.index(p)
+            else:
+                nf[self.zone] = zi
             nf[self.partl] = pi
-            nf.smooth = True
+            nf.smooth = not flat
         tmp.free()
+
+    # ---- explicit rings (jets): each ring a list of (x, f, z) points, or one point for a tip ----------
+    def rings(self, rings, paints=None, flat=False, cap=(True, True)):
+        """Skin consecutive rings. paints[i] (optional) paints the band from ring i to ring i+1."""
+        tmp, fp = bmesh.new(), {}
+        rr = [[tmp.verts.new((p[0], -p[1], p[2])) for p in r] for r in rings]
+        for k, (a, b) in enumerate(zip(rr, rr[1:])):
+            n, paint = max(len(a), len(b)), (paints[k] if paints else None)
+            for i in range(n if n > 2 else 1):                 # two-point rings make one quad (a fin)
+                j = (i + 1) % n
+                if len(a) == 1 and len(b) == 1:
+                    continue
+                if len(a) == 1:
+                    f = tmp.faces.new([a[0], b[i], b[j]])
+                elif len(b) == 1:
+                    f = tmp.faces.new([a[i], a[j], b[0]])
+                else:
+                    f = tmp.faces.new([a[i], a[j], b[j], b[i]])
+                if paint is not None:
+                    fp[f] = paint
+        for r, c, k in ((rr[0], cap[0], 0), (rr[-1], cap[1], len(rr) - 2)):
+            if c and len(r) > 2:
+                f = tmp.faces.new(r)
+                if paints and paints[min(k, len(paints) - 1)] is not None:
+                    fp[f] = paints[min(k, len(paints) - 1)]
+        self._add(tmp, fp, flat=flat)
+
+    KEYS = ('f', 'w', 'h', 'hb', 'x', 'z', 'p')
+
+    def sloft(self, stations, step=0.3, seg=SEG, p=2.4, flat=False, ring=None):
+        """Smooth loft: like loft(), but stations are resampled every ~step metres with a cubic through them,
+        so a dozen stations give a smooth fuselage. A station may carry paint= (the band that starts there)
+        and c=1 (a corner: straight lines into and out of it, for lips and steps). ring(s) may build a custom
+        cross-section (list of (x, f, z)) from a sampled station instead of the superellipse."""
+        st = []
+        for s in stations:
+            d = dict(x=0.0, z=0.0, p=p)
+            d.update(s)
+            d.setdefault('hb', d['h'])
+            st.append(d)
+        n = len(st)
+
+        def tan(i, k):
+            if st[i].get('c'):
+                return 0.0
+            a, b = st[max(0, i - 1)][k], st[min(n - 1, i + 1)][k]
+            return (b - a) / (2.0 if 0 < i < n - 1 else 1.0)
+
+        samples, paints = [], []
+        cur = st[0].get('paint')
+        for i in range(n - 1):
+            s0, s1 = st[i], st[i + 1]
+            if 'paint' in s0:
+                cur = s0['paint']
+            dist = math.hypot(s1['f'] - s0['f'], s1['w'] - s0['w'])
+            m = 1 if (s0.get('c') and s1.get('c')) else max(1, int(math.ceil(dist / step)))
+            for j in range(m):
+                t = j / m
+                h00, h10, h01, h11 = 2 * t ** 3 - 3 * t * t + 1, t ** 3 - 2 * t * t + t, -2 * t ** 3 + 3 * t * t, t ** 3 - t * t
+                r = {k: h00 * s0[k] + h10 * tan(i, k) + h01 * s1[k] + h11 * tan(i + 1, k) for k in self.KEYS}
+                for k in ('w', 'h', 'hb'):
+                    lo, hi = min(s0[k], s1[k]), max(s0[k], s1[k])
+                    r[k] = max(lo - 0.15 * (hi - lo), min(hi + 0.15 * (hi - lo), r[k]))
+                    r[k] = max(0.0, r[k])
+                if j == 0:
+                    r['w'] = s0['w']
+                samples.append(r)
+                paints.append(cur)
+        samples.append(dict((k, st[-1][k]) for k in self.KEYS))
+        rr = []
+        for k, s in enumerate(samples):
+            if s['w'] <= 1e-5 and (k == 0 or k == len(samples) - 1):
+                rr.append([(s['x'], s['f'], s['z'])])
+                continue
+            if ring:
+                rr.append(ring(s))
+                continue
+            r = []
+            for i in range(seg):
+                a = 2 * math.pi * i / seg
+                c, sn = math.cos(a), math.sin(a)
+                u = math.copysign(abs(c) ** (2 / s['p']), c) * max(s['w'], 0.002)
+                vv = math.copysign(abs(sn) ** (2 / s['p']), sn)
+                vv *= s['h'] if vv >= 0 else s['hb']
+                r.append((s['x'] + u, s['f'], s['z'] + vv))
+            rr.append(r)
+        self.rings(rr, paints if any(q is not None for q in paints) else None, flat=flat)
+
+    # ---- decals: flat paint laid on the surface found by a ray (roundels, fin flashes, numbers) ------
+    def surface(self, origin, direction):
+        """Cast a ray at the shapes built so far. Returns (point, normal) in (x, f, z) or None."""
+        from mathutils.bvhtree import BVHTree
+        self.bm.normal_update()
+        tree = BVHTree.FromBMesh(self.bm)
+        o = Vector((origin[0], -origin[1], origin[2]))
+        d = Vector((direction[0], -direction[1], direction[2])).normalized()
+        hit = tree.ray_cast(o, d)
+        if hit[0] is None:
+            return None
+        p, n = hit[0], hit[1]
+        if n.dot(d) > 0:
+            n = -n
+        return (p.x, -p.y, p.z), (n.x, -n.y, n.z)
+
+    def decal(self, origin, direction, shapes, fwd=(0, 1, 0), lift=0.014):
+        """shapes: list of (paint, polygons) drawn in order, each layer a little higher. A polygon is a list of
+        (u, v) points (u across, v along fwd projected on the surface), counter-clockwise."""
+        hit = self.surface(origin, direction)
+        if not hit:
+            print('decal: no surface under', origin)
+            return
+        p, n = Vector((hit[0][0], -hit[0][1], hit[0][2])), Vector((hit[1][0], -hit[1][1], hit[1][2])).normalized()
+        fv = Vector((fwd[0], -fwd[1], fwd[2]))
+        v = (fv - n * fv.dot(n)).normalized()
+        u = v.cross(n)
+        old = self.paint
+        for k, (paint, polys) in enumerate(shapes):
+            tmp = bmesh.new()
+            base = p + n * (lift + 0.003 * k)
+            for poly in polys:
+                tmp.faces.new([tmp.verts.new(base + u * a + v * b) for a, b in poly])
+            self.paint = paint
+            self._add(tmp, recalc=False)
+        self.paint = old
+
+    @staticmethod
+    def circle(r, n=20, r0=0.0):
+        """Disc (r0 = 0) or ring polygon(s) for decal(); a ring comes back as a list of quads."""
+        pts = [(r * math.cos(2 * math.pi * i / n), r * math.sin(2 * math.pi * i / n)) for i in range(n)]
+        if r0 <= 0:
+            return [pts]
+        inner = [(r0 * math.cos(2 * math.pi * i / n), r0 * math.sin(2 * math.pi * i / n)) for i in range(n)]
+        return [[pts[i], pts[(i + 1) % n], inner[(i + 1) % n], inner[i]] for i in range(n)]
 
     # ---- lofted body: rings along the forward axis -------------------------------------------------
     def loft(self, stations, seg=SEG, p=2.4, axis='f'):
@@ -139,7 +284,7 @@ class Builder:
     # ---- wing, tail, fin, blade: an aerofoil lofted from root to tip -----------------------------
     XS = [0.0, 0.025, 0.09, 0.22, 0.42, 0.68, 1.0]
 
-    def foil(self, root, tip, croot, ctip, t=0.11, steps=4, chord=(0, -1, 0), round_tip=True, tt=None):
+    def foil(self, root, tip, croot, ctip, t=0.11, steps=4, chord=(0, -1, 0), round_tip=True, tt=None, flat=False):
         """root, tip: leading-edge points (x, f, z). croot/ctip: chord lengths. t: thickness ratio (tt at the tip).
         chord: direction the chord runs, in (x, f, z); default straight back."""
         tmp = bmesh.new()
@@ -175,7 +320,7 @@ class Builder:
                 tmp.faces.new([a[i], a[j], b[j], b[i]])
         tmp.faces.new(rings[0])
         tmp.faces.new(rings[-1])
-        self._add(tmp)
+        self._add(tmp, flat=flat)
 
     def box(self, centre, size, rot=None, bevel=0.0):
         tmp = bmesh.new()
@@ -406,21 +551,26 @@ def camo(scheme, co, n):
     return mix(c, s['belly'], smooth(0.25, 0.7, -n.z))
 
 
-def make_object(name, b):
+def make_object(name, b, sharp=38):
     """bmesh -> Blender object with a painted corner colour attribute."""
     bm = b.bm
     bm.normal_update()
     me = bpy.data.meshes.new(name)
     col = bm.loops.layers.color.new('paint')
+    flag = bm.loops.layers.color.new('flag')         # 1 = camouflage drawn by the game's shader (the jets)
     for fc in bm.faces:
         paint = b.zones[fc[b.zone]]
         for lp in fc.loops:
-            c = camo(paint, lp.vert.co, lp.vert.normal if fc.smooth else fc.normal) if isinstance(paint, str) else paint
+            if paint == SHADER:
+                c, fl = (1.0, 1.0, 1.0), 1.0
+            else:
+                c, fl = (camo(paint, lp.vert.co, lp.vert.normal if fc.smooth else fc.normal) if isinstance(paint, str) else paint), 0.0
             lp[col] = (c[0], c[1], c[2], 1.0)
+            lp[flag] = (fl, fl, fl, 1.0)
     bm.to_mesh(me)
     ob = bpy.data.objects.new(name, me)
     bpy.context.scene.collection.objects.link(ob)
-    me.set_sharp_from_angle(angle=math.radians(38))
+    me.set_sharp_from_angle(angle=math.radians(sharp))
     return ob
 
 
@@ -443,7 +593,7 @@ def bake_ao(ob):
     bpy.ops.object.bake(type='AO')
 
 
-def decimated(ob, ratio):
+def decimated(ob, ratio, sharp=45):
     for o in bpy.context.scene.objects:
         o.select_set(False)
     ob.select_set(True)
@@ -453,7 +603,7 @@ def decimated(ob, ratio):
     m = lo.modifiers.new('dec', 'DECIMATE')
     m.ratio = ratio
     bpy.ops.object.modifier_apply(modifier='dec')
-    lo.data.set_sharp_from_angle(angle=math.radians(45))
+    lo.data.set_sharp_from_angle(angle=math.radians(sharp))
     return lo
 
 
@@ -461,18 +611,57 @@ def b64(fmt_bytes):
     return base64.b64encode(fmt_bytes).decode('ascii')
 
 
+def packed(verts, idx, np):
+    """Jet format (f: 2), built to compress well once the page is gzipped: no normals (the game recomputes them;
+    hard edges stay hard because their vertices are already split), positions as per-axis differences from the
+    previous vertex, indices as high-water-mark codes (0 = the next new vertex), every array split into planes
+    (all x, then all y ...; 16-bit values as a plane of low bytes, then a plane of high bytes)."""
+    def planes16(a):
+        u = np.ascontiguousarray(a.astype('<u2')).view('u1').reshape(-1, 2)
+        return np.concatenate([u[:, 0], u[:, 1]]).tobytes()
+    P = np.array([v[0] for v in verts], dtype=np.int32)
+    D = np.diff(np.vstack([np.zeros((1, 3), dtype=np.int32), P]), axis=0)
+    D = ((D + 32768) % 65536 - 32768).T.reshape(-1)                         # wrap to int16, planar
+    codes, hw = [], 0
+    for i in idx:
+        codes.append(hw - i)
+        if i == hw:
+            hw += 1
+        elif i > hw:
+            raise SystemExit('index order: vertices must be numbered in order of first use')
+    return dict(f=2, n=len(verts), t=len(idx) // 3, p=b64(planes16(D)), i=b64(planes16(np.array(codes))),
+                c=b64(np.array([v[2] for v in verts], dtype='u1').T.tobytes()), k=b64(np.array([v[3] for v in verts], dtype='u1').T.tobytes()))
+
+
 def export(ob, b, meta):
     """Split into parts, weld equal corners, quantise. Returns a JSON-able dict."""
     import numpy as np
     me = ob.data
     me.calc_loop_triangles()
-    paint, ao = me.color_attributes['paint'], me.color_attributes['ao']
+    paint, ao, flag = me.color_attributes['paint'], me.color_attributes['ao'], me.color_attributes['flag']
+    jet = meta.get('jet', False)          # jets keep paint and ambient occlusion apart: k = (occlusion, camo flag)
+    only = meta.get('only')
     partattr = me.attributes['part']
     normals = me.corner_normals
     pivot = Vector((0, 0, 0))
     out = {}
+    if jet:                                   # one occlusion value per vertex and normal, so smooth corners weld into one vertex
+        acc = {}
+        for li, lp in enumerate(me.loops):
+            n = normals[li].vector
+            kk = (lp.vertex_index, round(n.x * 127), round(n.y * 127), round(n.z * 127))
+            a0 = acc.setdefault(kk, [0.0, 0])
+            a0[0] += ao.data[li].color[0]
+            a0[1] += 1
+        aoc = {}
+        for li, lp in enumerate(me.loops):
+            n = normals[li].vector
+            a0 = acc[(lp.vertex_index, round(n.x * 127), round(n.y * 127), round(n.z * 127))]
+            aoc[li] = a0[0] / a0[1]
     ext = max(max(abs(c) for c in v.co) for v in me.vertices) * 1.001
     for pi, pname in enumerate(b.parts):
+        if only and pname not in only:
+            continue
         key, verts, idx = {}, [], []
         piv = Vector(meta['rotor']['pivot']) if (pname == 'rotor' and meta.get('rotor')) else pivot
         pv = Vector((piv[0], -piv[1], piv[2]))                    # pivot in Blender axes
@@ -482,13 +671,15 @@ def export(ob, b, meta):
             for li in tri.loops:
                 co = me.vertices[me.loops[li].vertex_index].co - pv
                 n = normals[li].vector
-                pc, a = paint.data[li].color, ao.data[li].color[0]
-                shade = 0.42 + 0.58 * min(1.0, a * 1.15)
+                pc, a = paint.data[li].color, (aoc[li] if jet else ao.data[li].color[0])
+                shade = 1.0 if jet else 0.42 + 0.58 * min(1.0, a * 1.15)
                 c = [max(0, min(255, round(255 * (pc[i] ** (1 / 2.2)) * shade))) for i in range(3)]
                 # game axes: x, y(up) = z, z(forward) = -y
                 p = (round(co.x / ext * 32767), round(co.z / ext * 32767), round(-co.y / ext * 32767))
                 q = (round(n.x * 127), round(n.z * 127), round(-n.y * 127))
                 k = (p, q, tuple(c))
+                if jet:
+                    k = k + ((max(0, min(255, round(255 * min(1.0, a * 1.1)))), max(0, min(255, round(255 * flag.data[li].color[0])))),)
                 i = key.get(k)
                 if i is None:
                     i = key[k] = len(verts)
@@ -498,44 +689,86 @@ def export(ob, b, meta):
             continue
         if len(verts) > 65535:
             raise SystemExit(ob.name + '/' + pname + ': too many vertices for 16-bit indices')
-        out[pname] = dict(
-            n=len(verts), t=len(idx) // 3,
-            p=b64(np.array([v[0] for v in verts], dtype='<i2').tobytes()),
-            q=b64(np.array([v[1] for v in verts], dtype='i1').tobytes()),
-            c=b64(np.array([v[2] for v in verts], dtype='u1').tobytes()),
-            i=b64(np.array(idx, dtype='<u2').tobytes()))
+        if jet:
+            out[pname] = packed(verts, idx, np)
+            out[pname]['e'] = round(ext, 5)                     # parts of one jet can come from different bakes
+        else:
+            out[pname] = dict(
+                n=len(verts), t=len(idx) // 3,
+                p=b64(np.array([v[0] for v in verts], dtype='<i2').tobytes()),
+                q=b64(np.array([v[1] for v in verts], dtype='i1').tobytes()),
+                c=b64(np.array([v[2] for v in verts], dtype='u1').tobytes()),
+                i=b64(np.array(idx, dtype='<u2').tobytes()))
         if pname == 'rotor' and meta.get('rotor'):
             out[pname]['pivot'] = [round(piv[0], 4), round(piv[2], 4), round(piv[1], 4)]      # game axes (x, up, forward)
             out[pname]['axis'] = meta['rotor']['axis']
     return dict(ext=round(ext, 5), parts=out)
 
 
+def clear():
+    """Remove every object, so the next bake sees only its own aircraft (ambient occlusion counts all objects)."""
+    for o in list(bpy.data.objects):
+        bpy.data.objects.remove(o, do_unlink=True)
+
+
+def header(name, what, glob):
+    return ('/* =====================================================================\n'
+            '   RED SKIES — ' + name + '   GENERATED by tools/blender/build_models.py. Do not edit by hand.\n'
+            '   ' + what + '\n'
+            '   Quantised positions (p, int16 × ext / 32767), normals (q, int8 / 127), vertex colours (c, uint8 sRGB)\n'
+            '   and indices (i, uint16), all base64. Game axes: +Y up, +Z forward, metres. Read by models_blender.js.\n'
+            '   ===================================================================== */\n'
+            '(function () {\n  window.RS = window.RS || {};\n  window.RS.' + glob + ' = ')
+
+
+def write(path, js, report):
+    with open(path, 'w') as fh:
+        fh.write(js)
+    report.append('wrote %s (%.0f KB)' % (os.path.relpath(path, ROOT), len(js) / 1024))
+
+
+def bake(kind, b, meta, report):
+    ob = make_object(kind, b, meta.get('sharp', 38))
+    bake_ao(ob)
+    lo = decimated(ob, meta['low'], meta.get('sharp', 45))
+    hi_d, lo_d = export(ob, b, meta), export(lo, b, meta)
+    aos = [c.color[0] for c in ob.data.color_attributes['ao'].data]
+    report.append('%s: ambient occlusion min %.2f, mean %.2f' % (kind, min(aos), sum(aos) / len(aos)))
+    clear()
+    return hi_d, lo_d
+
+
 def main():
     import json
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import jets
     bpy.ops.wm.read_factory_settings(use_empty=True)
+    tri = lambda d: sum(p['t'] for p in d['parts'].values())
     data, report = {}, []
     for kind, fn in (('drone', build_drone), ('helo_attack', build_helo), ('transport', build_transport)):
         b, meta = fn()
-        ob = make_object(kind, b)
-        bake_ao(ob)
-        lo = decimated(ob, meta['low'])
-        hi_d, lo_d = export(ob, b, meta), export(lo, b, meta)
+        hi_d, lo_d = bake(kind, b, meta, report)
         data[kind] = dict(length=meta['length'], high=hi_d, low=lo_d)
-        aos = [c.color[0] for c in ob.data.color_attributes['ao'].data]
-        report.append('%s: ambient occlusion min %.2f, mean %.2f' % (kind, min(aos), sum(aos) / len(aos)))
-        tri = lambda d: sum(p['t'] for p in d['parts'].values())
         report.append('%s: high %d tris, low %d tris' % (kind, tri(hi_d), tri(lo_d)))
-    js = ('/* =====================================================================\n'
-          '   RED SKIES — models_blender_data.js   GENERATED by tools/blender/build_models.py. Do not edit by hand.\n'
-          '   Blender-built aircraft (drone, helo_attack, transport): quantised positions (p, int16 × ext / 32767),\n'
-          '   normals (q, int8 / 127), vertex colours with baked ambient occlusion (c, uint8 sRGB) and indices (i, uint16),\n'
-          '   all base64. Game axes: +Y up, +Z forward, metres. Read by models_blender.js.\n'
-          '   ===================================================================== */\n'
-          '(function () {\n  window.RS = window.RS || {};\n  window.RS.blenderData = ' + json.dumps(data, separators=(',', ':')) + ';\n})();\n')
-    with open(OUT, 'w') as fh:
-        fh.write(js)
+    write(OUT, header('models_blender_data.js', 'Blender-built aircraft (drone, helo_attack, transport), vertex colours with baked ambient occlusion.', 'blenderData')
+          + json.dumps(data, separators=(',', ':')) + ';\n})();\n', report)
+    # V1.9: the jets. Paint and occlusion stay apart (k = occlusion, camo flag) so the game can draw the camouflage.
+    jd = {}
+    for kind, fn in jets.JETS:
+        b, meta = fn()
+        hi_d, lo_d = bake(kind, b, meta, report)
+        if kind == 'jet_friend':                    # the strike stores: baked on their own airframe copy, only the stores kept
+            b2, meta2 = jets.build_friend('strike')
+            meta2 = dict(meta2, only=('stores_strike',))
+            h2, l2 = bake(kind + '_strike', b2, meta2, report)
+            hi_d['parts'].update(h2['parts'])
+            lo_d['parts'].update(l2['parts'])
+        jd[kind] = dict(length=meta['length'], span=meta['span'], height=meta['height'],
+                        nozzles=[[round(n[0], 3), round(n[2], 3), round(n[1], 3)] for n in meta['nozzles']], high=hi_d, low=lo_d)
+        report.append('%s: high %d tris (%s), low %d tris' % (kind, tri(hi_d), ', '.join('%s %d' % (k, v['t']) for k, v in hi_d['parts'].items()), tri(lo_d)))
+    write(OUT_JETS, header('models_blender_jets_data.js', 'Blender-built jets (Kestrel, Wasp, Shade, Gyrfalcon): colours without shading, plus k = (baked occlusion, camo flag) uint8 pairs.', 'blenderJets')
+          + json.dumps(jd, separators=(',', ':')) + ';\n})();\n', report)
     print('\n'.join(report))
-    print('wrote %s (%.0f KB)' % (os.path.relpath(OUT, ROOT), len(js) / 1024))
 
 
 if __name__ == '__main__':
