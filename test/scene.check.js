@@ -38,6 +38,26 @@ const ok = (c, m) => { console.log((c ? '  PASS ' : '  FAIL ') + m); if (!c) fai
   }));
   ok(bl.every(m => m.src === 'blender' && m.ph === 'placeholder' && m.lo < m.hi && m.hi < 6000), 'Blender models: drone, helo_attack, transport (' + bl.map(m => `${m.k} ${m.hi}/${m.lo} tris`).join(', ') + ')');
   ok(bl[0].rotor && bl[1].rotor && bl[0].len > 2 && bl[0].len < 5 && bl[1].len > 12 && bl[1].len < 22 && bl[2].len > 30 && bl[2].len < 45, 'Blender models: rotor nodes and sizes (' + bl.map(m => m.len.toFixed(1) + ' m').join(', ') + ')');
+  // V1.9: the Kestrel, Wasp, Shade and Gyrfalcon are Blender-built too; other options still get the procedural models
+  const bj = await page.evaluate(() => {
+    const info = o => {
+      let n = 0, d = 0; o.traverse(m => { if (m.isMesh && m.visible) { d++; n += m.geometry.index ? m.geometry.index.count / 3 : m.geometry.attributes.position.count / 3; } });
+      const sz = new THREE.Box3().setFromObject(o).getSize(new THREE.Vector3());
+      return { src: o.userData.source || 'procedural', tris: n, draws: d, len: sz.z, noz: (o.userData.nozzles || []).length };
+    };
+    const C = (k, o) => info(RS.models.create(k, o));
+    const specs = [['jet_hostile', { variant: 'fighter', loadout: 'strike' }], ['jet_hostile', { variant: 'light', loadout: 'strike' }], ['jet_hostile', { variant: 'stealth', loadout: 'strike' }],
+      ['jet_friend', { loadout: 'cap', lights: false }], ['jet_friend', { loadout: 'strike', lights: false }]];
+    return {
+      jets: specs.map(([k, o]) => ({ name: o.variant || 'friend ' + o.loadout, hi: C(k, o), lo: C(k, Object.assign({ lod: 'low' }, o)) })),
+      fallback: [C('jet_hostile', { variant: 'bomber' }), C('jet_hostile', { variant: 'fighter', loadout: 'cap' }), C('jet_friend', { lights: true }),
+        C('jet_hostile', { variant: 'fighter', loadout: 'strike', procedural: true })].map(m => m.src)
+    };
+  });
+  ok(bj.jets.every(j => j.hi.src === 'blender' && j.lo.src === 'blender' && j.lo.tris < j.hi.tris && j.hi.tris < 9000 && j.hi.draws <= 6 && j.hi.noz >= 1),
+    'Blender jets: ' + bj.jets.map(j => `${j.name} ${j.hi.tris}/${j.lo.tris} tris, ${j.hi.draws} draws`).join('; '));
+  ok(bj.jets.every(j => j.hi.len > 14 && j.hi.len < 25) && bj.jets[3].hi.tris !== bj.jets[4].hi.tris, 'Blender jets: lengths ' + bj.jets.map(j => j.hi.len.toFixed(1)).join(', ') + ' m, cap and strike stores differ');
+  ok(bj.fallback.every(s => s !== 'blender'), 'jets the Blender pass does not cover stay procedural (bomber, fighter CAP, friend with lights, procedural:true)');
   ok(api.pos.every(p => isFinite(p.x) && isFinite(p.y) && isFinite(p.z)), 'launcherPos for L1/L2/L3/G1/RADAR/ASSET');
   const a = api.pos[5]; ok(Math.abs(Math.hypot(a.x, a.z) - 22000) < 50 && Math.abs(((Math.atan2(a.x, -a.z) * 180 / Math.PI + 360) % 360) - 200) < 1, 'ASSET at 200° / 22 km');
   ok(api.lis && isFinite(api.lis.pos.y) && api.lis.headingDeg === 25, 'listener() pose');

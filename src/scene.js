@@ -821,7 +821,7 @@
     if (!a[key]) { a[key] = makeModel(a.spec, key === 'far' ? 'far' : lo ? 'low' : 'high'); a.root.add(a[key]); }
     if (a.hi) a.hi.visible = key === 'hi'; if (a.lo) a.lo.visible = key === 'lo'; if (a.far) a.far.visible = key === 'far';
   }
-  const FAR_TIER = { jet_hostile: 1, jet_friend: 1 };   // the heavy vendor models (10–12k tris, up to 41 draws even at 'low')
+  const FAR_TIER = { jet_hostile: 1, jet_friend: 1 };   // jets keep the ~110-tri primitive past 2.5 km (2–5 px); V1.9's Blender jets are ~2–3k tris, 4–5 draws at 'low'
   function removeActor(id) { const a = actors[id]; if (!a) return; scene.remove(a.root); delete actors[id]; }
 
   /* ---------------- missile flights (TEL launch → hand-off → follow sim missile) ---------------- */

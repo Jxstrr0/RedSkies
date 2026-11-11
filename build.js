@@ -4,7 +4,7 @@ const fs = require('fs'), path = require('path');
 const ROOT = __dirname, SRC = path.join(ROOT, 'src'), OUT = path.join(ROOT, 'dist', 'weapons_hold.html');
 const VERSION = fs.readFileSync(path.join(ROOT, 'VERSION'), 'utf8').trim();   // single source: <title> (%RS_VERSION%) + window.RS.VERSION
 const ORDER = ['contracts.js', 'content.js', 'campaign.js', 'sim.js',
-  'models.js', 'models_weapons.js', 'models_weapons_east.js', 'models_launchers.js', 'models_ground.js', 'models_jets.js', 'jet_friend.js', 'models_blender_data.js', 'models_blender.js',
+  'models.js', 'models_weapons.js', 'models_weapons_east.js', 'models_launchers.js', 'models_ground.js', 'models_jets.js', 'jet_friend.js', 'models_blender_data.js', 'models_blender_jets_data.js', 'models_blender.js',
   'scene.js', 'cabin.js', 'audio.js', 'audio_weapons.js', 'ui.js', 'eo.js', 'savecode.js', 'meta.js', 'title.js', 'tutorial.js', 'main.js'];
 const MARKER = '<!-- RS_SCRIPTS -->', THREE_MARKER = '<!-- RS_THREE -->';
 const die = msg => { console.error('build: ' + msg); process.exit(1); };
