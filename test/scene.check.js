@@ -29,6 +29,15 @@ const ok = (c, m) => { console.log((c ? '  PASS ' : '  FAIL ') + m); if (!c) fai
     tels: Object.values(RS.scene.debug.tels).map(t => ({ id: t.id, vendor: t.vendor, state: t.ud.state, rounds: t.ud.rounds }))
   }));
   ok(api.bridge && api.kinds, 'Models bridge: window.Models === RS.models, kinds superset');
+  // V1.8: the drone, helicopter and transport are Blender-built (models_blender.js); the placeholder stays reachable for the far stand-in
+  const bl = await page.evaluate(() => ['drone', 'helo_attack', 'transport'].map(k => {
+    const tris = o => { let n = 0; o.traverse(m => { if (m.isMesh) n += m.geometry.index.count / 3; }); return n; };
+    const hi = RS.models.create(k, { placeholder: true }), lo = RS.models.create(k, { lod: 'low' }), ph = RS.models.placeholder(k, {});
+    const sz = new THREE.Box3().setFromObject(hi).getSize(new THREE.Vector3());
+    return { k, src: hi.userData.source, rotor: !!hi.getObjectByName('rotor'), hi: tris(hi), lo: tris(lo), ph: ph.userData.source || 'placeholder', len: Math.max(sz.x, sz.z) };
+  }));
+  ok(bl.every(m => m.src === 'blender' && m.ph === 'placeholder' && m.lo < m.hi && m.hi < 6000), 'Blender models: drone, helo_attack, transport (' + bl.map(m => `${m.k} ${m.hi}/${m.lo} tris`).join(', ') + ')');
+  ok(bl[0].rotor && bl[1].rotor && bl[0].len > 2 && bl[0].len < 5 && bl[1].len > 12 && bl[1].len < 22 && bl[2].len > 30 && bl[2].len < 45, 'Blender models: rotor nodes and sizes (' + bl.map(m => m.len.toFixed(1) + ' m').join(', ') + ')');
   ok(api.pos.every(p => isFinite(p.x) && isFinite(p.y) && isFinite(p.z)), 'launcherPos for L1/L2/L3/G1/RADAR/ASSET');
   const a = api.pos[5]; ok(Math.abs(Math.hypot(a.x, a.z) - 22000) < 50 && Math.abs(((Math.atan2(a.x, -a.z) * 180 / Math.PI + 360) % 360) - 200) < 1, 'ASSET at 200° / 22 km');
   ok(api.lis && isFinite(api.lis.pos.y) && api.lis.headingDeg === 25, 'listener() pose');

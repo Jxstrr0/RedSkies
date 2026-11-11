@@ -111,7 +111,8 @@ the node tests.
 - **Debrief history.** The sim records what the operator saw every 2 s plus
   the key events, for the debrief replay.
 - **The view** (`scene.js`, `cabin.js`, `eo.js`, `models*.js`): terrain, sky
-  and weather, procedural aircraft and launcher models, missiles with smoke and
+  and weather, procedural aircraft and launcher models (the drone, helicopter
+  and transport are built in Blender, 1.8.0.0), missiles with smoke and
   kill effects, a kill cam that follows your rounds, and the EO tracker (TV/IR,
   swap by tapping) with reticle, gate and readouts.
 - **Audio** (`audio.js`, `audio_weapons.js`): everything is procedural
