@@ -35,6 +35,7 @@ In a new session read `CLAUDE.md` first, then this file (history, decisions and 
 - License: all rights reserved.
 - V1.4.5.0: the studio is Longlight Interactive (was Prairie Blue Studio).
 - V1.6.0.0 save safety (Kelbo asked for it in every Longlight game, 2026-11-06): ask the browser to keep storage, backup files next to the save code, and a quiet reminder. Small calls made here: the reminder sits on the main menu (BACK UP ▸ opens Settings at the save code box, LATER hides it for this visit); "progress" means a finished campaign shift or a survival run; the last-backup time lives in the existing `settings` key as `backupAt` (no new key), and restoring a code sets it to the code's own date, so a freshly restored phone is not nagged.
+- V1.7.0.0 UI pass, small calls made here: the hint line is on by default with a Settings switch; it tells the player the next key in the drill but never whether a contact is friend or foe; the help page is one scrolling page, not a second tutorial; the launcher keys keep their short words (ROE TIGHT, OUT RNG) because longer ones do not fit a 360 px phone, and the field card explains them instead.
 - V1.5.0.0: save codes get their own number. They are a new feature, so it is a Minor bump (Kelbo, 2026-10-24: pick a sensible number and go).
 - The title/cover shot keeps full-quality grass; the performance savings apply in play only.
 - V1.4.4.0 Training Watch:
@@ -43,6 +44,13 @@ In a new session read `CLAUDE.md` first, then this file (history, decisions and 
   - After launch the coach card follows the camera: it explains OUT OF RANGE, then says when the camera has picked up the jet.
 
 ## Changelog
+
+- **1.7.0.0** (2026-11-11): easier start (Kelbo asked for a UI pass that makes the game simpler to understand from the start).
+  - **HOW TO PLAY** field card (`meta.js` `help()`): the drill in five steps, the three scope symbols, and a plain-words list of the console's short words (ROE, TX, ARM, Pk, OUT RNG, RLD, 1×/2×, TRK, RDR, JAM, Q, EO). It opens from the main menu, Settings and the pause screen (BACK returns to the pause screen, still paused). Weapon ranges are read from `content.js`.
+  - **"What next" line** under the selected track (`ui.js` `nextHint()`): "Next: tap IFF…", "No IFF reply. Check COMMS…", "Marked HOSTILE. Next: tap ASSIGN…", "Launcher ready. Press and hold FIRE.", and a warning when a track that answered FRIEND is marked HOSTILE. It never says what a contact is; that stays the player's call. **Settings → HINTS** turns it off (`settings.hints`, in save codes too).
+  - The first briefing offers **TRAINING** and HOW TO PLAY while training is not done. The menu's TRAINING button now says "Start here" and "about 3 minutes".
+  - Fix: in training, pop-up messages (for example "L2 LANCE assigned") covered the coach card's NEXT button. They now sit just above the card (`tutorial.js` `liftToast()`).
+  - Tests: `savecode.test.js` covers `settings.hints`; `test/meta.check.js` has a `help` section (META_ONLY=help).
 
 - **1.6.1.1** (2026-11-08): republish for the new address, https://redskies.longlight.games/ (every Longlight game now has its own subdomain, so its own storage; saves from before the move stay on jxstrr0.github.io). Docs, the save-safety comment in `src/main.js` and the `LONGLIGHT-STUDIO.md` copy updated; no gameplay change.
 - **1.6.1.0** (2026-11-06): home-screen icon. A green radar scope with its sweep and a red hostile contact (`icons/icon.svg`), rendered to `icons/apple-touch-icon.png` (180), `icon-192.png`, `icon-512.png` and `icon-512-maskable.png` by `tools/make-icons.js` (run by hand). New `manifest.webmanifest` (standalone, portrait, `#050707`); the shell links the manifest, favicon (SVG + PNG) and apple-touch-icon, and names the home-screen app "Red Skies".
