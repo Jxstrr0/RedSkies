@@ -11,6 +11,10 @@ on:
         type: boolean
         default: false
 
+# Read-only: this workflow only builds and tests, it never writes to the repo.
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
