@@ -48,6 +48,7 @@ In a new session read `CLAUDE.md` first, then this file (history, decisions and 
 
 ## Changelog
 
+- **CI only, no version change** (2026-11-11): `ci.yml` now says `permissions: contents: read`, so the test workflow's GitHub token can only read the repo, whatever the account default is. Nothing in the game changes. From a security audit of the studio repos.
 - **1.9.0.0** (2026-11-11): second Blender pass, the jets (Kelbo asked for the next Blender pass on the jets).
   - The four jets the game flies are now built in Blender: the hostile **Kestrel** (twin-engine fighter), **Wasp** (light fighter) and **Shade** (faceted stealth jet), and the friendly **Gyrfalcon**. Smooth lofted airframes, intakes with real depth, glazed canopies with a pilot inside, nozzles with a glowing face, the strike and CAP stores, and **ambient occlusion baked with Cycles** (under the wings, in the intakes, between stores).
   - Much lighter to draw: 4–5 draw calls per jet instead of 26–62, and about a quarter of the triangles (Kestrel 6,822 / 2,418 low, was 28,078 / 12,670; Gyrfalcon 7,376 / 2,654, was 20,464 / 12,028; Wasp 5,356 / 1,896; Shade 1,780 / 790). The low-detail copy now looks like the high one (the old one lost its canopy and stores).
