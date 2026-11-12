@@ -13,8 +13,10 @@ Read this file first. Then `DESIGN.md` (the game as built) and `plan/status.md`
   packages. Every module is a plain script sharing one global, `window.RS`.
 - three.js r128, vendored at `vendor/three.min.js` (MIT, see
   `vendor/three.LICENSE`). No CDN, so the game also plays offline.
-- The only outside resource is two Google Fonts for the title (Russo One, Big
-  Shoulders Display). They load without blocking and have fallbacks.
+- The only outside resources are two Google Fonts for the title (Russo One, Big
+  Shoulders Display), which load without blocking and have fallbacks, and the
+  Cloudflare Web Analytics beacon (`static.cloudflareinsights.com`, in
+  `src/00_shell.html`; cookieless visit counts, Kelbo 2026-11-12).
 - Dev only: Playwright 1.56.1 (`package.json`), for the browser checks. CI uses
   Node 22.
 
@@ -40,7 +42,7 @@ python tools/blender/build_models.py   # rebuilds src/models_blender_data.js and
   artifact flavour with no doctype/html/head/body).
 - The build fails if a file in `src/` is missing from `ORDER`, or the other way
   round. A new module goes into `ORDER` in load order.
-- `VERSION` holds `Major.Minor.Patch.Build` (now 1.9.0.0). The build stamps it
+- `VERSION` holds `Major.Minor.Patch.Build` (now 1.9.1.0). The build stamps it
   into the `<title>` and `window.RS.VERSION`. Major = overhaul, Minor = feature
   batch, Patch = tweak or fix, Build = republish. Bump it before a release.
 - After any `src/` change: run `node build.js` and commit `index.html` with it.
@@ -142,7 +144,7 @@ python tools/blender/build_models.py   # rebuilds src/models_blender_data.js and
 
 ## Current status
 
-- V1.9.0.0 is on `main` and live. Built and playable: the Training Watch, a
+- V1.9.1.0 is on `main` and live. Built and playable: the Training Watch, a
   six-shift campaign with three variants per shift, Free watch, Survival,
   medals, the resupply shop, save codes with backup files, the 3-D operator
   cabin with the EO camera, procedural audio and haptics.
@@ -156,7 +158,8 @@ python tools/blender/build_models.py   # rebuilds src/models_blender_data.js and
   transport plane are built by `tools/blender/build_models.py`.
   1.9.0.0 is the second Blender pass: the Kestrel, Wasp, Shade and Gyrfalcon
   jets (`tools/blender/jets.py`).
-  Next feature batch is 1.10.0.0, next fix 1.9.1.0.
+  1.9.1.0 adds the Cloudflare Web Analytics beacon (cookieless visit counts).
+  Next feature batch is 1.10.0.0, next fix 1.9.2.0.
 - Own address: since November 2026 every Longlight game has its own subdomain,
   so Red Skies has its own localStorage, Cache Storage and quota. Saves from
   before the move stay on the old shared origin, `jxstrr0.github.io` (Kelbo
