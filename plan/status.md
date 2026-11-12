@@ -48,6 +48,7 @@ In a new session read `CLAUDE.md` first, then this file (history, decisions and 
 
 ## Changelog
 
+- **Repo housekeeping, no version change** (2026-11-12): from the studio security cycle. The CI checkouts no longer keep their GitHub login (`persist-credentials: false`), `.gitignore` covers `.env` files, and `.github/dependabot.yml` asks for one grouped pull request a month for minor and patch updates to the dev tools (major versions are left to do by hand). Nothing in the game changes.
 - **CI only, no version change** (2026-11-11): `ci.yml` now says `permissions: contents: read`, so the test workflow's GitHub token can only read the repo, whatever the account default is. Nothing in the game changes. From a security audit of the studio repos.
 - **1.9.0.0** (2026-11-11): second Blender pass, the jets (Kelbo asked for the next Blender pass on the jets).
   - The four jets the game flies are now built in Blender: the hostile **Kestrel** (twin-engine fighter), **Wasp** (light fighter) and **Shade** (faceted stealth jet), and the friendly **Gyrfalcon**. Smooth lofted airframes, intakes with real depth, glazed canopies with a pilot inside, nozzles with a glowing face, the strike and CAP stores, and **ambient occlusion baked with Cycles** (under the wings, in the intakes, between stores).
